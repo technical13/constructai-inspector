@@ -1,0 +1,29 @@
+{
+  "name": "constructai-inspector",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Mobile-first construction defect inspection MVP0",
+  "scripts": {
+    "bootstrap": "./scripts/bootstrap.sh",
+    "quickstart": "./scripts/bootstrap.sh --run",
+    "quickstart:full": "./scripts/bootstrap.sh --with-cv --run",
+    "dev": "./scripts/dev-all.sh",
+    "lint": "node scripts/lint.mjs",
+    "start": "node src/server.js",
+    "test": "CV_INFERENCE_MODE=mock node --test",
+    "typecheck": "node scripts/typecheck.mjs",
+    "build": "node scripts/build.mjs",
+    "hygiene": "node scripts/hygiene.mjs",
+    "audit": "node scripts/audit.mjs",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build && npm run hygiene && npm run audit",
+    "cv:start": ".venv-cv/bin/python -m uvicorn services.cv_inference.app:app --host 127.0.0.1 --port 8001"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.3.3",
+    "postgres": "^3.4.9"
+  }
+}

@@ -1,0 +1,18 @@
+# CV inference runtime for local experiments on macOS / Apple Silicon.
+# Install into .venv-cv:
+#   python3.11 -m venv .venv-cv
+#   .venv-cv/bin/pip install -r services/cv_inference/requirements.txt
+#
+# The DeepCrack checkpoint is intentionally not stored in git.
+# Place it at:
+#   services/cv_inference/models/deepcrack_ct260.pth
+
+fastapi==0.135.3
+gdown==6.0.0
+numpy==2.4.4
+pillow==12.2.0
+pydantic==2.13.0
+torch==2.11.0
+torchvision==0.26.0
+transformers==5.5.4
+uvicorn==0.44.0

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f1f1ec" />
+    <title>ConstructAI Inspector</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="masthead">
+        <div class="brand-lockup">
+          <div class="brand-mark" aria-hidden="true">
+            <span></span>
+            <span></span>
+          </div>
+          <div>
+            <p class="brand-name">ConstructAI Inspector</p>
+            <p class="brand-caption" data-i18n="brand.caption">Инженерный маршрут фиксации дефекта</p>
+          </div>
+        </div>
+        <div class="masthead-side">
+          <p class="masthead-note" data-i18n="masthead.note">Один экран. Один шаг. Одно следующее действие.</p>
+          <div class="locale-switch" role="group" aria-label="Language switch">
+            <button class="locale-switch__button" type="button" data-locale-switch="ru">RU</button>
+            <button class="locale-switch__button" type="button" data-locale-switch="en">EN</button>
+          </div>
+        </div>
+      </header>
+
+      <main class="wizard">
+        <div id="status-banner" class="status-banner hidden" role="status" aria-live="polite"></div>
+
+        <section class="wizard-shell">
+          <header class="wizard-head">
+            <p id="step-kicker" class="step-kicker"></p>
+            <h1 id="step-title">Объект</h1>
+            <p id="step-copy" class="step-copy"></p>
+            <div class="stepper">
+              <button class="stepper__item" type="button" data-step-nav="project">
+                <span>1</span>
+                <small data-i18n="stepper.project">Объект</small>
+              </button>
+              <button class="stepper__item" type="button" data-step-nav="session">
+                <span>2</span>
+                <small data-i18n="stepper.session">Сессия</small>
+              </button>
+              <button class="stepper__item" type="button" data-step-nav="defect">
+                <span>3</span>
+                <small data-i18n="stepper.defect">Дефект</small>
+              </button>
+              <button class="stepper__item" type="button" data-step-nav="report">
+                <span>4</span>
+                <small data-i18n="stepper.report">Акт</small>
+              </button>
+            </div>
+          </header>
+
+          <section id="screen-project" class="screen">
+            <div class="screen-card stack">
+              <div class="screen-card__header">
+                <p class="screen-card__eyebrow" data-i18n="project.eyebrow">Текущий объект</p>
+                <h2 data-i18n="project.title">Выберите объект для обхода</h2>
+              </div>
+
+              <label>
+                <span data-i18n="project.label">Объект</span>
+                <select id="project-choice"></select>
+              </label>
+
+              <div id="project-quick-summary" class="info-card hidden"></div>
+
+              <div class="action-row">
+                <button id="project-continue-button" class="button" type="button" data-i18n="project.continue">
+                  Продолжить
+                </button>
+              </div>
+            </div>
+
+            <details class="secondary-block">
+              <summary data-i18n="project.new.summary">Новый объект</summary>
+              <form id="project-form" class="stack" autocomplete="on">
+                <label>
+                  <span data-i18n="project.new.name">Название</span>
+                  <input
+                    name="name"
+                    type="text"
+                    placeholder="Монолитная лестница, секция Б"
+                    data-i18n-placeholder="project.new.namePlaceholder"
+                    autocomplete="organization-title"
+                    required
+                  />
+                </label>
+                <label>
+                  <span data-i18n="project.new.address">Адрес</span>
+                  <input
+                    name="address"
+                    type="text"
+                    placeholder="г. Новосибирск, ул. ..."
+                    data-i18n-placeholder="project.new.addressPlaceholder"
+                    autocomplete="street-address"
+                  />
+                </label>
+                <label>
+                  <span data-i18n="project.new.description">Короткая заметка</span>
+                  <textarea
+                    name="description"
+                    rows="3"
+                    placeholder="Например: распалубка, визуальный осмотр маршей"
+                    data-i18n-placeholder="project.new.descriptionPlaceholder"
+                  ></textarea>
+                </label>
+                <button type="submit" class="button button--secondary" data-i18n="project.new.create">Создать объект</button>
+              </form>
+            </details>
+          </section>
+
+          <section id="screen-session" class="screen hidden">
+            <div id="active-session-card" class="screen-card hidden"></div>
+
+            <form id="session-form" class="screen-card stack" autocomplete="on">
+              <div class="screen-card__header">
+                <p class="screen-card__eyebrow" data-i18n="session.eyebrow">Новая сессия</p>
+                <h2 data-i18n="session.title">Откройте рабочую сессию</h2>
+              </div>
+
+              <label>
+                <span data-i18n="session.inspector">Инспектор</span>
+                <input
+                  id="session-inspector-input"
+                  name="inspectorName"
+                  type="text"
+                  placeholder="ФИО инспектора"
+                  data-i18n-placeholder="session.inspectorPlaceholder"
+                  autocomplete="name"
+                />
+              </label>
+
+              <details class="secondary-block secondary-block--inline">
+                <summary data-i18n="session.noteSummary">Заметка к сессии</summary>
+                <label>
+                  <span data-i18n="common.comment">Комментарий</span>
+                  <textarea
+                    id="session-note-input"
+                    name="sessionNote"
+                    rows="3"
+                    placeholder="Необязательно. Например: обход 5 этажа"
+                    data-i18n-placeholder="session.notePlaceholder"
+                  ></textarea>
+                </label>
+              </details>
+
+              <div class="action-row">
+                <button id="session-back-button" class="button button--plain" type="button" data-i18n="common.back">
+                  Назад
+                </button>
+                <button id="session-submit-button" class="button" type="submit" data-i18n="session.open">
+                  Открыть сессию
+                </button>
+              </div>
+            </form>
+
+            <div id="active-session-actions" class="action-row hidden">
+              <button id="continue-session-button" class="button" type="button" data-i18n="session.continue">
+                Продолжить осмотр
+              </button>
+            </div>
+          </section>
+
+          <section id="screen-defect" class="screen screen--defect hidden">
+            <div class="screen-card screen-card--capture stack">
+              <div class="screen-card__header">
+                <p class="screen-card__eyebrow" data-i18n="defect.photoEyebrow">Фото</p>
+                <h2 data-i18n="defect.photoTitle">Добавьте новый дефект</h2>
+              </div>
+
+              <div class="capture-tools">
+                <section id="demo-panel" class="demo-panel hidden">
+                  <div class="subhead">
+                    <div>
+                      <p class="screen-card__eyebrow" data-i18n="demo.eyebrow">Demo Mode</p>
+                      <h3 data-i18n="demo.title">Проверить на готовом примере</h3>
+                    </div>
+                    <span class="meta-note" data-i18n="demo.meta">без локального inference</span>
+                  </div>
+                  <p class="inline-note" data-i18n="demo.note">
+                    Выберите заранее обработанное фото: приложение покажет сохранённую
+                    маску Grounded SAM 2 так же, как после реального анализа.
+                  </p>
+                  <div id="demo-scenarios" class="demo-grid"></div>
+                </section>
+
+                <div class="capture-toolbar">
+                  <label class="capture-field capture-field--file">
+                    <span data-i18n="defect.ownPhoto">Своя фотография</span>
+                    <div class="capture-upload">
+                      <button
+                        id="photo-trigger-button"
+                        class="button button--secondary button--file"
+                        type="button"
+                        data-i18n="defect.choosePhoto"
+                      >
+                        Выбрать фото
+                      </button>
+                      <span id="photo-file-name" class="capture-upload__filename" data-i18n="defect.noPhotoSelected">
+                        Фото не выбрано
+                      </span>
+                    </div>
+                    <input
+                      id="photo-input"
+                      class="visually-hidden"
+                      name="photo"
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      required
+                    />
+                  </label>
+
+                  <label class="capture-field capture-field--model">
+                    <span data-i18n="defect.aiModel">AI-модель</span>
+                    <select id="defect-model-select"></select>
+                  </label>
+                </div>
+
+                <p id="defect-model-note" class="inline-note capture-note"></p>
+              </div>
+
+              <div class="capture-stage">
+                <div id="photo-preview" class="photo-preview photo-preview--empty" data-i18n="defect.previewEmpty">
+                  Снимите фото или выберите его из галереи
+                </div>
+
+                <section id="suggestion-panel" class="ai-panel hidden" aria-live="polite">
+                  <div class="ai-panel__header">
+                    <div>
+                      <p class="screen-card__eyebrow">AI</p>
+                      <h3 data-i18n="defect.aiTitle">Предварительная подсказка</h3>
+                    </div>
+                  </div>
+                  <div id="suggestion-content" class="ai-panel__content"></div>
+                  <div class="action-row action-row--compact action-row--analysis">
+                    <button id="accept-suggestion-button" class="button button--secondary" type="button" data-i18n="defect.acceptSuggestion">
+                      Принять тип
+                    </button>
+                    <button id="dismiss-suggestion-button" class="button button--plain" type="button" data-i18n="defect.dismissSuggestion">
+                      Оставить вручную
+                    </button>
+                  </div>
+                </section>
+
+                <section id="demo-save-panel" class="decision-panel hidden" aria-live="polite">
+                  <div class="subhead">
+                    <div>
+                      <p class="screen-card__eyebrow" data-i18n="demo.saveEyebrow">Demo Mode</p>
+                      <h3 data-i18n="demo.saveTitle">Сохранить как demo-пример</h3>
+                    </div>
+                  </div>
+                  <p id="demo-save-copy" class="inline-note" data-i18n="demo.saveCopy">
+                    Если результат удачный, добавьте этот кейс в публичную demo-подборку.
+                  </p>
+                  <label class="decision-panel__field">
+                    <span data-i18n="demo.saveLabel">Название примера</span>
+                    <input
+                      id="demo-save-name"
+                      type="text"
+                      data-i18n-placeholder="demo.savePlaceholder"
+                      placeholder="Например: Тонкая трещина на марше"
+                    />
+                  </label>
+                  <div class="action-row action-row--compact">
+                    <button id="demo-save-button" class="button" type="button" data-i18n="demo.saveButton">
+                      Сохранить в Demo Mode
+                    </button>
+                    <button id="demo-dismiss-button" class="button button--plain" type="button" data-i18n="demo.dismissButton">
+                      Не сохранять
+                    </button>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <form id="defect-form" class="screen-card screen-card--confirm stack" novalidate>
+              <div class="screen-card__header">
+                <p class="screen-card__eyebrow" data-i18n="defect.descriptionEyebrow">Описание</p>
+                <h2 data-i18n="defect.descriptionTitle">Подтвердите и сохраните</h2>
+              </div>
+
+              <label>
+                <span data-i18n="defect.type">Тип дефекта</span>
+                <select id="defect-type-select" name="defectType" required></select>
+              </label>
+
+              <div id="defect-hints" class="hint-box"></div>
+
+              <label>
+                <span data-i18n="common.location">Участок</span>
+                <input
+                  name="locationDescription"
+                  type="text"
+                  placeholder="Например: наружный угол марша, нижняя плоскость"
+                  data-i18n-placeholder="common.locationPlaceholder"
+                  autocomplete="off"
+                />
+              </label>
+
+              <label>
+                <span data-i18n="common.comment">Комментарий</span>
+                <textarea
+                  id="comment-input"
+                  name="comment"
+                  rows="4"
+                  placeholder="Короткое структурированное описание"
+                  data-i18n-placeholder="common.commentPlaceholder"
+                  required
+                ></textarea>
+              </label>
+
+              <div id="defect-session-inline" class="info-strip"></div>
+
+              <div class="action-row action-row--defect-primary">
+                <button id="defect-back-button" class="button button--plain" type="button" data-i18n="common.back">
+                  Назад
+                </button>
+                <button id="jump-to-report-button" class="button button--secondary" type="button" data-i18n="defect.toReport">
+                  К акту
+                </button>
+                <button type="submit" class="button" data-i18n="defect.save">Сохранить дефект</button>
+              </div>
+            </form>
+          </section>
+
+          <section id="screen-report" class="screen screen--report hidden">
+            <div class="screen-card screen-card--report-shell stack">
+              <div class="screen-card__header">
+                <p class="screen-card__eyebrow" data-i18n="report.eyebrow">Результат</p>
+                <h2 data-i18n="report.title">Соберите акт</h2>
+              </div>
+
+              <div class="report-overview-grid">
+                <div id="report-step-summary" class="info-card report-step-summary"></div>
+
+                <div class="report-controls">
+                  <label>
+                    <span data-i18n="report.reanalyseModel">Модель для переанализа</span>
+                    <select id="report-model-select"></select>
+                  </label>
+
+                  <p id="report-model-note" class="inline-note report-controls__note"></p>
+
+                  <div class="action-row action-row--report-primary">
+                    <button id="new-defect-button" class="button button--plain" type="button" data-i18n="report.newDefect">
+                      Ещё дефект
+                    </button>
+                    <button id="generate-report-button" class="button" type="button" data-i18n="report.generate">
+                      Сформировать акт
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="screen-card screen-card--report-section stack">
+              <div class="subhead">
+                <h3 data-i18n="report.defectsTitle">Дефекты в сессии</h3>
+                <span id="defect-count" class="meta-note"></span>
+              </div>
+              <div id="defect-list" class="defect-list empty-state"></div>
+            </div>
+
+            <div class="screen-card screen-card--report-section stack">
+              <div class="subhead">
+                <h3 data-i18n="report.generatedTitle">Сформированные акты</h3>
+              </div>
+              <div id="report-list" class="report-list empty-state"></div>
+            </div>
+          </section>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <p class="site-footer__credit">by Maksim Sabrekov</p>
+      </footer>
+    </div>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
