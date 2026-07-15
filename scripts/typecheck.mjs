@@ -21,7 +21,15 @@ const requiredModules = [
   },
   {
     path: "../src/runtime-config.js",
-    keys: ["getStorageBackend", "isDemoLibraryWritable"]
+    keys: ["getStorageBackend", "isDemoLibraryWritable", "getCvInferenceTimeoutMs", "getCvInferenceMaxConcurrency", "getCvInferenceMaxQueue"]
+  },
+  {
+    path: "../src/inference-gateway.js",
+    keys: ["BoundedExecutor", "getInferencePolicy", "requestInference"]
+  },
+  {
+    path: "../src/cv-benchmark.js",
+    keys: ["validateCvBenchmarkManifest"]
   },
   {
     path: "../src/store.js",

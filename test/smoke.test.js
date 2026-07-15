@@ -23,6 +23,7 @@ import { getPhotoAssetId, getPhotoFileName } from "../src/media-reference.js"
 import { buildReportSnapshot, renderReportHtml } from "../src/report.js"
 import {
   getDefaultCvModelKey,
+  getCvInferenceUrl,
   getStorageBackend,
   isDemoLibraryWritable
 } from "../src/runtime-config.js"
@@ -180,6 +181,10 @@ test("report html is generated from stored snapshot data", () => {
   assert.match(html, /inspection-photo__meta/)
   assert.match(html, />Трещина</)
   assert.match(html, /Отчёт воспроизводим из сохранённого снимка сессии/)
+  assert.match(html, /--signal: #f2e600/)
+  assert.match(html, /border-radius: 4px/)
+  assert.match(html, /font-family: "IBM Plex Mono"/)
+  assert.doesNotMatch(html, /box-shadow:/)
 })
 
 test("report html renders crack polyline evidence without collapsing it into a box", () => {
@@ -622,6 +627,38 @@ test("demo library is writable locally and read-only on Vercel", () => {
   restoreEnv("DEMO_LIBRARY_WRITABLE", previousOverride)
 })
 
+test("Vercel does not advertise a developer loopback CV endpoint", () => {
+  const envNames = [
+    "VERCEL",
+    "CV_INFERENCE_URL",
+    "DEEPCRACK_INFERENCE_URL",
+    "GROUNDING_DINO_INFERENCE_URL",
+    "GROUNDED_SAM2_INFERENCE_URL",
+    "FLORENCE2_INFERENCE_URL",
+    "GENERAL_CV_INFERENCE_URL"
+  ]
+  const previousValues = new Map(envNames.map((name) => [name, process.env[name]]))
+
+  try {
+    process.env.VERCEL = "1"
+    for (const name of envNames.slice(1)) {
+      delete process.env[name]
+    }
+
+    assert.equal(getCvInferenceUrl(), "")
+    assert.ok(getCvModels().every((model) => model.configured === false))
+
+    process.env.GROUNDED_SAM2_INFERENCE_URL = "https://cv.example.test"
+    const groundedSam = getCvModels().find((model) => model.key === "grounded-sam2")
+    assert.equal(groundedSam.configured, true)
+    assert.equal(groundedSam.statusLabel, "Endpoint подключён")
+  } finally {
+    for (const [name, value] of previousValues) {
+      restoreEnv(name, value)
+    }
+  }
+})
+
 test("demo mutation API rejects writes in a read-only deployment", async () => {
   const previousVercel = process.env.VERCEL
   const previousOverride = process.env.DEMO_LIBRARY_WRITABLE
@@ -704,6 +741,15 @@ test("demo scenario can be saved from a successful local analysis", async () => 
 
   assert.equal(payload.scenarios.length, 1)
   assert.equal(payload.scenarios[0].title, "Тонкая трещина")
+  assert.equal(payload.scenarios[0].titleEn, "Crack example")
+  assert.equal(
+    payload.scenarios[0].descriptionEn,
+    "Saved from local Grounded SAM 2 analysis."
+  )
+  assert.equal(
+    payload.scenarios[0].commentEn,
+    "A crack has been detected. Clarify the location, extent, and visible characteristics of the defect."
+  )
   assert.equal(payload.scenarios[0].suggestion.finalType, "crack")
   assert.equal(payload.scenarios[0].suggestion.status, "accepted")
   assert.match(payload.scenarios[0].imageUrl, /^\/demo\/images\/.+\.png$/)

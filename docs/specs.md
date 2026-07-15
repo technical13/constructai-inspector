@@ -17,6 +17,7 @@ ConstructAI Inspector is a mobile-first web application for construction defect 
 
 - ask AI for a preliminary defect type
 - display one or more attention zones on the photo
+- compare configured pretrained models on the same photo
 - require human confirmation or correction before persistence
 
 ## Explicit Non-Goals
@@ -26,7 +27,7 @@ ConstructAI Inspector is a mobile-first web application for construction defect 
 - BIM/CAD integration
 - enterprise auth/permissions
 - video inspection
-- multi-model orchestration
+- autonomous model ranking without a labeled validation set
 
 ## Deterministic Requirements
 

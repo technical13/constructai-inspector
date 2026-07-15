@@ -9,6 +9,9 @@
 5. A `Report` is reproducible from stored snapshot data without consulting live UI state.
 6. `aiSuggestion` may influence operator workflow but may not silently overwrite human-confirmed persisted truth.
 7. `visualEvidence` is optional metadata; absence of CV data must not block the deterministic workflow.
+8. Every external inference attempt has a finite deadline, active-concurrency limit, and finite queue.
+9. A benchmark reference records its provenance; only independently human-annotated references may support accuracy claims.
+10. An unavailable model adapter must not prevent independent adapters from starting or reporting readiness.
 
 ## State Mutation Discipline
 
@@ -46,3 +49,5 @@ The task is invalid if it:
 - allows a defect without a photo
 - silently changes public route or stored key semantics
 - lets AI output bypass human-reviewed persistence
+- permits unbounded CV execution or an unbounded inference queue
+- labels a model-generated regression fixture as human ground truth

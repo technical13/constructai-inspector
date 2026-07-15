@@ -11,16 +11,21 @@
     "dev": "./scripts/dev-all.sh",
     "lint": "node scripts/lint.mjs",
     "start": "node src/server.js",
-    "test": "CV_INFERENCE_MODE=mock node --test",
+    "test": "npm run test:node && npm run test:python-contracts",
+    "test:node": "CV_INFERENCE_MODE=mock node --test",
+    "test:python-contracts": "python3 -B -m unittest discover -s services/cv_inference/tests -p 'test_*.py'",
     "typecheck": "node scripts/typecheck.mjs",
     "build": "node scripts/build.mjs",
     "hygiene": "node scripts/hygiene.mjs",
     "audit": "node scripts/audit.mjs",
     "verify": "npm run lint && npm run typecheck && npm test && npm run build && npm run hygiene && npm run audit",
+    "benchmark:cv:validate": "node scripts/run-cv-benchmark.mjs",
+    "benchmark:cv": "node scripts/run-cv-benchmark.mjs --live",
+    "benchmark:cv:enforce": "node scripts/run-cv-benchmark.mjs --live --enforce",
     "cv:start": ".venv-cv/bin/python -m uvicorn services.cv_inference.app:app --host 127.0.0.1 --port 8001"
   },
   "engines": {
-    "node": ">=20"
+    "node": "24.x"
   },
   "dependencies": {
     "@vercel/blob": "^2.3.3",

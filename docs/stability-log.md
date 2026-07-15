@@ -33,3 +33,25 @@
 - Test confidence: `4`
 - Performance notes: Audit is linear in source/runtime file count and runs only during verification; no new UI or inference hot-path work.
 - Remaining risk surface: Git metadata is absent; three orphan local uploads await manual review; Postgres behavior is contract-checked but not integration-tested against a live database.
+
+## 2026-07-15
+
+- Change summary: Added per-endpoint bounded Node inference, lazy and capacity-limited Python model registry, per-model readiness, and a versioned live CV regression benchmark with explicit provenance.
+- Risk classification: `HIGH`
+- Stability score: `4`
+- Risk surface score: `4`
+- Invariant confidence: `5`
+- Test confidence: `4`
+- Performance notes: One active inference per endpoint by default prevents simultaneous model pressure on Apple Silicon; queue and deadline are finite on both runtime boundaries.
+- Remaining risk surface: Grounded SAM 2 reproduces all three reference masks but misclassifies `branching-crack` as `corrosion`; references are model-generated and cannot measure real accuracy; three orphan local uploads remain untouched.
+
+## 2026-07-15 Public Deployment
+
+- Change summary: Deployed the read-only CV demo and Node API to Vercel with free Neon Postgres; added deployment exclusions, honest endpoint detection, bilingual demo fallbacks, and live production smoke coverage.
+- Risk classification: `HIGH`
+- Stability score: `5`
+- Risk surface score: `4`
+- Invariant confidence: `5`
+- Test confidence: `5`
+- Performance notes: Deployment input was reduced from 703 MB/21,107 files to 1.8 MB/83 files; public requests do not load Python models.
+- Remaining risk surface: online inference is intentionally unavailable; GitHub auto-deploy depends on granting the Vercel GitHub App repository access; three local orphan uploads remain untouched.

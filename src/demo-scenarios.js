@@ -4,6 +4,7 @@ import path from "node:path"
 
 import { AppError } from "./app-error.js"
 import { writeFileAtomic } from "./atomic-file.js"
+import { getLocalizedDefectTypeMeta } from "./catalog.js"
 import { finalizeAiSuggestion } from "./inference.js"
 import { parseImageDataUrl } from "./image-data.js"
 import { paths } from "./paths.js"
@@ -124,6 +125,17 @@ export async function saveDemoScenario(input, options = {}) {
   const description =
     normalizeOptionalString(input?.description) ||
     buildDefaultDescription(finalSuggestion.modelLabel || "AI", locale)
+  const englishType = getLocalizedDefectTypeMeta(finalType, "en")
+  const titleEn =
+    normalizeOptionalString(input?.titleEn) ||
+    (locale === "en" ? title : `${englishType.label} example`)
+  const descriptionEn =
+    normalizeOptionalString(input?.descriptionEn) ||
+    (locale === "en"
+      ? description
+      : buildDefaultDescription(finalSuggestion.modelLabel || "AI", "en"))
+  const commentEn =
+    normalizeOptionalString(input?.commentEn) || englishType.defaultComment
   const scenarioId = `${slugify(title)}-${randomUUID().slice(0, 8)}`
 
   return withDemoMutation(async () => {
@@ -133,10 +145,13 @@ export async function saveDemoScenario(input, options = {}) {
     const scenario = {
       id: scenarioId,
       title,
+      titleEn,
       description,
+      descriptionEn,
       imageUrl: `/demo/images/${imageFileName}`,
       locationDescription: normalizeOptionalString(input?.locationDescription),
       comment: normalizeOptionalString(input?.comment),
+      commentEn,
       suggestion: finalSuggestion
     }
 

@@ -1,4 +1,5 @@
 import { promises as fs } from "node:fs"
+import { createHash } from "node:crypto"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -6,6 +7,7 @@ import {
   getPhotoAssetId,
   getPhotoFileName
 } from "../src/media-reference.js"
+import { validateCvBenchmarkManifest } from "../src/cv-benchmark.js"
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const errors = []
@@ -199,6 +201,38 @@ async function auditDemoLibrary() {
   }
 }
 
+async function auditCvBenchmark() {
+  const manifest = await readJson(path.join("benchmarks", "cv", "manifest.json"))
+  const scenarioDocument = await readJson(
+    path.join("public", "demo", "scenarios.json")
+  )
+  const benchmarkErrors = validateCvBenchmarkManifest(manifest, scenarioDocument)
+
+  for (const error of benchmarkErrors) {
+    errors.push(`CV benchmark: ${error}`)
+  }
+
+  const imageHashes = new Map()
+  for (const benchmarkCase of manifest.cases || []) {
+    const imagePath = path.join(rootDir, benchmarkCase.imagePath || "")
+    if (!(await exists(imagePath))) {
+      errors.push(`CV benchmark: missing image ${benchmarkCase.imagePath || "unknown"}`)
+      continue
+    }
+
+    const digest = createHash("sha256")
+      .update(await fs.readFile(imagePath))
+      .digest("hex")
+    if (imageHashes.has(digest)) {
+      errors.push(
+        `CV benchmark: cases ${imageHashes.get(digest)} and ${benchmarkCase.id} use duplicate image content`
+      )
+    } else {
+      imageHashes.set(digest, benchmarkCase.id)
+    }
+  }
+}
+
 async function auditSourceGraph() {
   const sourceFiles = (
     await Promise.all(
@@ -286,6 +320,7 @@ if (!(await exists(path.join(rootDir, ".git")))) {
 await auditSourceGraph()
 await auditBrowserContracts()
 await auditDemoLibrary()
+await auditCvBenchmark()
 await auditLocalData()
 
 for (const warning of warnings) {

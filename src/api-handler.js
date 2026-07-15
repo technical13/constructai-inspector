@@ -24,6 +24,7 @@ import {
   getDefaultCvModelKey,
   isDemoLibraryWritable
 } from "./runtime-config.js"
+import { getInferencePolicy } from "./inference-gateway.js"
 
 function sendJson(response, statusCode, payload) {
   response.writeHead(statusCode, {
@@ -97,7 +98,8 @@ export async function handleApiRequest(request, response, pathname) {
         defaultCvModelKey: getDefaultCvModelKey(),
         runtime: {
           storageBackend,
-          demoLibraryWritable: isDemoLibraryWritable()
+          demoLibraryWritable: isDemoLibraryWritable(),
+          inferencePolicy: getInferencePolicy()
         }
       })
     }

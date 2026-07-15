@@ -7,7 +7,9 @@
 
 ## Blocking Call Prevention
 
-- do not place long-running CV inference inside the synchronous web request path without explicit timeout strategy
+- all external CV calls pass through the bounded inference gateway
+- default active concurrency is one request per endpoint, with a finite queue and 120-second deadline
+- Python CV runtime independently limits direct concurrent callers and lazy-loads each model
 - do not add blocking filesystem loops in request handlers
 
 ## Memory Growth Control

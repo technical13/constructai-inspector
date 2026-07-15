@@ -26,6 +26,8 @@
 - defect edit/delete behavior against existing reports
 - old snapshot compatibility after UI/report refactors
 - inference fallback behavior when external CV is unavailable
+- timeout and queue semantics across Node gateway and Python registry
+- benchmark reference provenance and duplicate-case detection
 
 ## Previous Schema Risks
 
@@ -42,4 +44,18 @@ Whenever a regression is found or a fragile area is touched, append a dated note
 - Legacy CV adapters used `void` while the domain catalog uses `honeycombing`; all incoming legacy values are now normalized before review or persistence.
 - Demo-library write controls must stay hidden and API mutations blocked on read-only public deployments.
 - Three local upload files are currently unreferenced. They remain untouched pending explicit user approval for destructive cleanup.
-- Git metadata is absent from the current workspace copy, so history and tracked-file audits are unavailable.
+- Git metadata was subsequently restored; repository-aware audits are available again.
+
+## 2026-07-15 Bounded Inference And Benchmark
+
+- Parallel comparison previously fanned all configured models into one local ML endpoint without a deadline or concurrency bound.
+- DeepCrack checkpoint loading previously occurred during module import and could prevent independent adapters from starting.
+- The initial benchmark candidate set contained two byte-identical demo images; duplicate-content detection now rejects this condition.
+- Curated model masks are regression references only. They are explicitly ineligible for accuracy claims until independent human annotations exist.
+
+## 2026-07-15 Vercel Deployment
+
+- Vercel CLI included 703 MB of local environments, model weights, and runtime data until an explicit `.vercelignore` was added. Deployment input must remain small and free of local data.
+- A Vercel runtime without an explicit CV endpoint previously inherited `127.0.0.1:8001` and advertised models as configured. Loopback defaults are now local-only.
+- Locally added demo scenarios may contain only Russian source text. English UI must derive deterministic localized demo metadata and comments instead of leaking Russian fallback text.
+- Production smoke tests must clean up temporary Postgres projects and sessions after asserting write/read behavior.

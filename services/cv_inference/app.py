@@ -2,6 +2,7 @@ import base64
 import os
 from io import BytesIO
 from pathlib import Path
+from threading import Lock
 
 import numpy as np
 import torch
@@ -17,6 +18,25 @@ from transformers import (
 )
 
 from .deepcrack_model import DeepCrack
+from .model_registry import ModelBusyError, ModelRegistry, UnknownModelError
+
+
+def read_bounded_int(name: str, fallback: int, minimum: int, maximum: int) -> int:
+    try:
+        value = int(os.getenv(name, str(fallback)))
+    except ValueError:
+        return fallback
+    return value if minimum <= value <= maximum else fallback
+
+
+def read_bounded_float(
+    name: str, fallback: float, minimum: float, maximum: float
+) -> float:
+    try:
+        value = float(os.getenv(name, str(fallback)))
+    except ValueError:
+        return fallback
+    return value if minimum <= value <= maximum else fallback
 
 
 MODEL_PATH = Path(__file__).resolve().parent / "models" / "deepcrack_ct260.pth"
@@ -70,6 +90,13 @@ SAM2_MIN_PIXELS = int(os.getenv("SAM2_MIN_PIXELS", "80"))
 SAM2_MIN_PIXELS_DEEPCRACK_SEED = int(os.getenv("SAM2_MIN_PIXELS_DEEPCRACK_SEED", "28"))
 SAM2_MAX_AREA_RATIO = float(os.getenv("SAM2_MAX_AREA_RATIO", "0.38"))
 SAM2_EXPAND_RATIO = float(os.getenv("SAM2_EXPAND_RATIO", "0.08"))
+CV_SERVICE_MAX_CONCURRENCY = read_bounded_int(
+    "CV_SERVICE_MAX_CONCURRENCY", 1, 1, 8
+)
+CV_SERVICE_MAX_QUEUE = read_bounded_int("CV_SERVICE_MAX_QUEUE", 8, 0, 64)
+CV_SERVICE_QUEUE_TIMEOUT_SECONDS = read_bounded_float(
+    "CV_SERVICE_QUEUE_TIMEOUT_SECONDS", 10.0, 0.1, 600.0
+)
 
 
 class InferRequest(BaseModel):
@@ -813,18 +840,37 @@ def build_ranked_detection(
 
 class DeepCrackService:
     def __init__(self):
-        if not MODEL_PATH.exists():
-            raise FileNotFoundError(
-                f"Не найден checkpoint DeepCrack: {MODEL_PATH}"
-            )
-
         self.device = choose_device()
-        self.model = DeepCrack().to(self.device)
-        state = torch.load(MODEL_PATH, map_location="cpu")
-        self.model.load_state_dict(state)
-        self.model.eval()
+        self.model = None
+        self._load_lock = Lock()
+
+    def readiness(self) -> dict:
+        return {
+            "available": MODEL_PATH.exists(),
+            "loaded": self.model is not None,
+            "detail": str(MODEL_PATH),
+        }
+
+    def ensure_loaded(self):
+        if self.model is not None:
+            return
+
+        with self._load_lock:
+            if self.model is not None:
+                return
+            if not MODEL_PATH.exists():
+                raise FileNotFoundError(
+                    f"Не найден checkpoint DeepCrack: {MODEL_PATH}"
+                )
+
+            model = DeepCrack().to(self.device)
+            state = torch.load(MODEL_PATH, map_location="cpu")
+            model.load_state_dict(state)
+            model.eval()
+            self.model = model
 
     def infer(self, image_data_url: str):
+        self.ensure_loaded()
         image = parse_image_data_url(image_data_url)
         tensor, metadata = preprocess_image(image)
         tensor = tensor.to(self.device)
@@ -891,17 +937,30 @@ class GroundingDinoService:
         self.dtype = choose_inference_dtype(self.device)
         self.processor = None
         self.model = None
+        self._load_lock = Lock()
+
+    def readiness(self) -> dict:
+        return {
+            "available": True,
+            "loaded": self.processor is not None and self.model is not None,
+            "detail": GROUNDING_DINO_MODEL_ID,
+        }
 
     def ensure_loaded(self):
         if self.processor is not None and self.model is not None:
             return
 
-        self.processor = AutoProcessor.from_pretrained(GROUNDING_DINO_MODEL_ID)
-        self.model = AutoModelForZeroShotObjectDetection.from_pretrained(
-            GROUNDING_DINO_MODEL_ID
-        )
-        self.model = self.model.to(self.device)
-        self.model.eval()
+        with self._load_lock:
+            if self.processor is not None and self.model is not None:
+                return
+            processor = AutoProcessor.from_pretrained(GROUNDING_DINO_MODEL_ID)
+            model = AutoModelForZeroShotObjectDetection.from_pretrained(
+                GROUNDING_DINO_MODEL_ID
+            )
+            model = model.to(self.device)
+            model.eval()
+            self.processor = processor
+            self.model = model
 
     def detect_candidates(self, image: Image.Image) -> list[dict]:
         self.ensure_loaded()
@@ -1019,18 +1078,31 @@ class Florence2Service:
         self.dtype = choose_inference_dtype(self.device)
         self.processor = None
         self.model = None
+        self._load_lock = Lock()
+
+    def readiness(self) -> dict:
+        return {
+            "available": True,
+            "loaded": self.processor is not None and self.model is not None,
+            "detail": FLORENCE2_MODEL_ID,
+        }
 
     def ensure_loaded(self):
         if self.processor is not None and self.model is not None:
             return
 
-        self.processor = AutoProcessor.from_pretrained(FLORENCE2_MODEL_ID)
-        self.model = Florence2ForConditionalGeneration.from_pretrained(
-            FLORENCE2_MODEL_ID,
-            dtype=self.dtype,
-        )
-        self.model = self.model.to(self.device)
-        self.model.eval()
+        with self._load_lock:
+            if self.processor is not None and self.model is not None:
+                return
+            processor = AutoProcessor.from_pretrained(FLORENCE2_MODEL_ID)
+            model = Florence2ForConditionalGeneration.from_pretrained(
+                FLORENCE2_MODEL_ID,
+                dtype=self.dtype,
+            )
+            model = model.to(self.device)
+            model.eval()
+            self.processor = processor
+            self.model = model
 
     def infer(self, image_data_url: str):
         self.ensure_loaded()
@@ -1198,15 +1270,28 @@ class GroundedSam2Service:
         self.crack_service = crack_service
         self.processor = None
         self.model = None
+        self._load_lock = Lock()
+
+    def readiness(self) -> dict:
+        return {
+            "available": True,
+            "loaded": self.processor is not None and self.model is not None,
+            "detail": SAM2_MODEL_ID,
+        }
 
     def ensure_loaded(self):
         if self.processor is not None and self.model is not None:
             return
 
-        self.processor = Sam2Processor.from_pretrained(SAM2_MODEL_ID)
-        self.model = Sam2Model.from_pretrained(SAM2_MODEL_ID)
-        self.model = self.model.to(self.device)
-        self.model.eval()
+        with self._load_lock:
+            if self.processor is not None and self.model is not None:
+                return
+            processor = Sam2Processor.from_pretrained(SAM2_MODEL_ID)
+            model = Sam2Model.from_pretrained(SAM2_MODEL_ID)
+            model = model.to(self.device)
+            model.eval()
+            self.processor = processor
+            self.model = model
 
     def segment_box(self, image: Image.Image, candidate: dict) -> dict | None:
         self.ensure_loaded()
@@ -1337,7 +1422,10 @@ class GroundedSam2Service:
         }
 
     def get_deepcrack_candidates(self, image_data_url: str) -> list[dict]:
-        suggestion = self.crack_service.infer(image_data_url)
+        try:
+            suggestion = self.crack_service.infer(image_data_url)
+        except FileNotFoundError:
+            return []
         if suggestion.get("suggestedType") != "crack":
             return []
 
@@ -1501,6 +1589,29 @@ deepcrack_service = DeepCrackService()
 grounding_dino_service = GroundingDinoService()
 grounded_sam2_service = GroundedSam2Service(grounding_dino_service, deepcrack_service)
 florence2_service = Florence2Service()
+model_registry = ModelRegistry(
+    max_concurrency=CV_SERVICE_MAX_CONCURRENCY,
+    max_queue=CV_SERVICE_MAX_QUEUE,
+    queue_timeout_seconds=CV_SERVICE_QUEUE_TIMEOUT_SECONDS,
+)
+model_registry.register(
+    "deepcrack", "DeepCrack", deepcrack_service.infer, deepcrack_service.readiness
+)
+model_registry.register(
+    "grounding-dino",
+    "Grounding DINO",
+    grounding_dino_service.infer,
+    grounding_dino_service.readiness,
+)
+model_registry.register(
+    "grounded-sam2",
+    "Grounded SAM 2",
+    grounded_sam2_service.infer,
+    grounded_sam2_service.readiness,
+)
+model_registry.register(
+    "florence-2", "Florence-2", florence2_service.infer, florence2_service.readiness
+)
 
 
 @app.get("/health")
@@ -1508,7 +1619,9 @@ def health():
     return {
         "status": "ok",
         "device": str(deepcrack_service.device),
-        "models": ["deepcrack", "grounding-dino", "grounded-sam2", "florence-2"],
+        "models": model_registry.keys(),
+        "modelStatus": model_registry.describe(),
+        "inferencePolicy": model_registry.policy(),
     }
 
 
@@ -1516,16 +1629,12 @@ def health():
 def infer(payload: InferRequest):
     try:
         model_key = (payload.modelKey or "deepcrack").strip().lower()
-
-        if model_key == "grounding-dino":
-            return {"suggestion": grounding_dino_service.infer(payload.imageDataUrl)}
-
-        if model_key == "grounded-sam2":
-            return {"suggestion": grounded_sam2_service.infer(payload.imageDataUrl)}
-
-        if model_key == "florence-2":
-            return {"suggestion": florence2_service.infer(payload.imageDataUrl)}
-
-        return {"suggestion": deepcrack_service.infer(payload.imageDataUrl)}
+        return {"suggestion": model_registry.infer(model_key, payload.imageDataUrl)}
+    except UnknownModelError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except ModelBusyError as error:
+        raise HTTPException(status_code=429, detail=str(error)) from error
+    except FileNotFoundError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error

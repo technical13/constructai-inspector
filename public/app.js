@@ -58,11 +58,11 @@ const translations = {
     "demo.meta": "сохранённый результат",
     "demo.note": "Выберите пример и посмотрите маску.",
     "demo.saveEyebrow": "Demo Mode",
-    "demo.saveTitle": "Сохранить как demo-пример",
+    "demo.saveTitle": "Добавить в демо",
     "demo.saveCopy": "Если результат удачный, добавьте этот кейс в публичную demo-подборку.",
     "demo.saveLabel": "Название примера",
     "demo.savePlaceholder": "Например: Тонкая трещина на марше",
-    "demo.saveButton": "Сохранить в Demo Mode",
+    "demo.saveButton": "Отправить в демо",
     "demo.dismissButton": "Не сохранять",
     "demo.deleteButton": "Удалить",
     "defect.ownPhoto": "Своя фотография",
@@ -138,11 +138,11 @@ const translations = {
     "demo.meta": "saved result",
     "demo.note": "Pick an example and view the mask.",
     "demo.saveEyebrow": "Demo Mode",
-    "demo.saveTitle": "Save as a demo example",
+    "demo.saveTitle": "Add to demo",
     "demo.saveCopy": "If the result looks good, add this case to the public demo set.",
     "demo.saveLabel": "Example name",
     "demo.savePlaceholder": "For example: Thin crack on the stair flight",
-    "demo.saveButton": "Save to Demo Mode",
+    "demo.saveButton": "Add to demo",
     "demo.dismissButton": "Do not save",
     "demo.deleteButton": "Delete",
     "defect.ownPhoto": "Your own photo",
@@ -367,6 +367,21 @@ function t(key, vars = {}) {
 function setLocale(locale) {
   state.locale = locale === "en" ? "en" : "ru"
   localStorage.setItem("constructai.locale", state.locale)
+
+  const activeScenario = getDemoScenario(state.activeDemoScenarioId)
+  if (
+    activeScenario &&
+    elements.commentInput?.dataset.demoScenarioId === activeScenario.id
+  ) {
+    const localizedScenario = getLocalizedDemoScenario(activeScenario)
+    const defectType =
+      activeScenario.suggestion?.finalType ||
+      activeScenario.suggestion?.suggestedType ||
+      "other"
+    elements.commentInput.value =
+      localizedScenario.comment || getDefectMeta(defectType).defaultComment
+  }
+
   renderAll()
 }
 
@@ -628,9 +643,23 @@ function getLocalizedDemoScenario(scenario) {
     return scenario
   }
 
-  const localized = demoScenarioTranslations[scenario.id]
+  const localized = demoScenarioTranslations[scenario.id] || {}
+  const defectType =
+    scenario.suggestion?.finalType || scenario.suggestion?.suggestedType || "other"
+  const defectMeta = defectMetaTranslations[defectType] || defectMetaTranslations.other
+  const modelLabel = scenario.suggestion?.modelLabel || "AI"
 
-  return localized ? { ...scenario, ...localized } : scenario
+  return {
+    ...scenario,
+    title:
+      scenario.titleEn || localized.title || `${defectMeta.label} example`,
+    description:
+      scenario.descriptionEn ||
+      localized.description ||
+      `Saved from local ${modelLabel} analysis.`,
+    locationDescription: scenario.locationDescriptionEn || "",
+    comment: scenario.commentEn || defectMeta.defaultComment
+  }
 }
 
 function normalizeDemoScenarios(payload) {
@@ -647,11 +676,17 @@ function normalizeDemoScenarios(payload) {
     .map((item) => ({
       id: item.id,
       title: item.title,
+      titleEn: typeof item.titleEn === "string" ? item.titleEn : "",
       description: typeof item.description === "string" ? item.description : "",
+      descriptionEn:
+        typeof item.descriptionEn === "string" ? item.descriptionEn : "",
       imageUrl: item.imageUrl,
       locationDescription:
         typeof item.locationDescription === "string" ? item.locationDescription : "",
+      locationDescriptionEn:
+        typeof item.locationDescriptionEn === "string" ? item.locationDescriptionEn : "",
       comment: typeof item.comment === "string" ? item.comment : "",
+      commentEn: typeof item.commentEn === "string" ? item.commentEn : "",
       suggestion: item.suggestion
     }))
 }
@@ -2099,11 +2134,13 @@ async function imageUrlToDataUrl(imageUrl) {
 }
 
 async function applyDemoScenario(scenarioId) {
-  const scenario = getDemoScenario(scenarioId)
+  const sourceScenario = getDemoScenario(scenarioId)
 
-  if (!scenario) {
+  if (!sourceScenario) {
     throw new Error(localizeRuntimeText("Демо-сценарий не найден."))
   }
+
+  const scenario = getLocalizedDemoScenario(sourceScenario)
 
   state.suggestionRequestId += 1
   const requestId = state.suggestionRequestId
@@ -2152,6 +2189,7 @@ async function applyDemoScenario(scenarioId) {
   if (scenario.comment) {
     elements.commentInput.value = scenario.comment
     elements.commentInput.dataset.autofilled = "false"
+    elements.commentInput.dataset.demoScenarioId = scenario.id
   }
 
   renderAll()
@@ -2247,6 +2285,7 @@ async function deleteCurrentDemoScenario(scenarioId) {
       if (elements.commentInput) {
         elements.commentInput.value = ""
         delete elements.commentInput.dataset.autofilled
+        delete elements.commentInput.dataset.demoScenarioId
       }
     }
 
@@ -2406,6 +2445,7 @@ elements.sessionForm.addEventListener("submit", async (event) => {
 elements.photoInput.addEventListener("change", async (event) => {
   const file = event.target.files?.[0]
   state.activeDemoScenarioId = ""
+  delete elements.commentInput.dataset.demoScenarioId
 
   if (!file) {
     setPhotoPreview("")
@@ -2484,9 +2524,13 @@ elements.reportModelSelect.addEventListener("change", async (event) => {
   }
 })
 
-elements.defectTypeSelect.addEventListener("change", updateDefectHints)
+elements.defectTypeSelect.addEventListener("change", () => {
+  delete elements.commentInput.dataset.demoScenarioId
+  updateDefectHints()
+})
 elements.commentInput.addEventListener("input", () => {
   elements.commentInput.dataset.autofilled = "false"
+  delete elements.commentInput.dataset.demoScenarioId
 })
 
 elements.acceptSuggestionButton.addEventListener("click", () => {
@@ -2568,6 +2612,7 @@ elements.defectForm.addEventListener("submit", async (event) => {
     setPhotoPreview("")
     resetSuggestionState()
     elements.commentInput.dataset.autofilled = "true"
+    delete elements.commentInput.dataset.demoScenarioId
     renderDefectTypeOptions()
     await refreshSessionBundle()
     setStep("report")

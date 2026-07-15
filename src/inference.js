@@ -1,5 +1,6 @@
 import { defectCatalog, getDefectTypeMeta } from "./catalog.js"
 import { AppError } from "./app-error.js"
+import { requestInference } from "./inference-gateway.js"
 import { parseImageDataUrl } from "./image-data.js"
 import {
   getCvInferenceMode,
@@ -53,6 +54,15 @@ function getCvModelSpec(modelKey = getDefaultCvModelKey()) {
   return cvModelSpecs.find((item) => item.key === modelKey) || cvModelSpecs[0]
 }
 
+function isLocalEndpoint(endpointUrl) {
+  try {
+    const { hostname } = new URL(endpointUrl)
+    return hostname === "127.0.0.1" || hostname === "localhost" || hostname === "::1"
+  } catch {
+    return false
+  }
+}
+
 export function getCvModels() {
   const defaultKey = getDefaultCvModelKey()
 
@@ -68,15 +78,9 @@ export function getCvModels() {
       targetDefectTypes: item.targetDefectTypes,
       configured,
       statusLabel: configured
-        ? item.key === "deepcrack"
-          ? "Локально"
-          : item.key === "grounding-dino"
-            ? "Локальный CV-service"
-            : item.key === "grounded-sam2"
-              ? "Локальный CV-service"
-            : item.key === "florence-2"
-              ? "Локальный CV-service"
-              : "Endpoint подключён"
+        ? isLocalEndpoint(endpointUrl)
+          ? "Локальный CV-service"
+          : "Endpoint подключён"
         : "Endpoint не подключён",
       defaultSelected: item.key === defaultKey
     }
@@ -410,25 +414,6 @@ function createMockSuggestion(
   }
 }
 
-async function readInferenceError(response) {
-  const text = await response.text()
-
-  if (!text) {
-    return `CV inference service вернул ошибку ${response.status}.`
-  }
-
-  try {
-    const payload = JSON.parse(text)
-    return (
-      payload?.detail ||
-      payload?.error ||
-      `CV inference service вернул ошибку ${response.status}.`
-    )
-  } catch {
-    return text
-  }
-}
-
 async function requestExternalSuggestion(imageDataUrl, now, modelKey) {
   const model = getCvModelSpec(modelKey)
   const endpointUrl = getCvModelUrl(model.key)
@@ -440,19 +425,11 @@ async function requestExternalSuggestion(imageDataUrl, now, modelKey) {
     )
   }
 
-  const response = await fetch(`${endpointUrl}/infer`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({ imageDataUrl, modelKey: model.key })
+  const payload = await requestInference({
+    endpointUrl,
+    imageDataUrl,
+    modelKey: model.key
   })
-
-  if (!response.ok) {
-    throw new AppError(response.status, await readInferenceError(response))
-  }
-
-  const payload = await response.json()
   const suggestion = payload?.suggestion
 
   if (!suggestion || typeof suggestion !== "object") {

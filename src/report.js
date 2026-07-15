@@ -560,43 +560,53 @@ export function renderReportHtml(snapshot) {
     <style>
       :root {
         color-scheme: light;
-        --ink: #171819;
-        --ink-soft: #535650;
-        --muted: #7a7c76;
-        --line: #d3cec1;
-        --panel: #fbfaf6;
-        --panel-soft: #f2efe7;
-        --bg: #f1efe7;
-        --accent: #11161d;
-        --signal: #fff23f;
-        --shadow: 0 12px 28px rgba(17, 18, 17, 0.05);
+        --ink: #151718;
+        --ink-soft: #52554f;
+        --muted: #71736d;
+        --line: #bbb7aa;
+        --line-soft: #d4d0c4;
+        --panel: #fbfaf5;
+        --panel-soft: #e8e5da;
+        --bg: #d5d1c4;
+        --paper: #f3f1e8;
+        --signal: #f2e600;
       }
       * {
         box-sizing: border-box;
       }
       body {
         margin: 0;
-        font-family: "IBM Plex Sans", "Segoe UI", "SF Pro Text", system-ui, sans-serif;
+        border-top: 4px solid var(--ink);
+        font-family: "IBM Plex Sans", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
         color: var(--ink);
         background: var(--bg);
       }
       main {
         max-width: 820px;
         margin: 0 auto;
-        padding: 18px 14px 28px;
+        padding: 24px 14px 32px;
       }
       .report-shell {
-        padding: 18px;
-        border: 1px solid var(--line);
-        border-radius: 24px;
+        position: relative;
+        padding: 22px;
+        border: 1px solid var(--ink);
+        border-radius: 4px;
         background: var(--panel);
-        box-shadow: var(--shadow);
+      }
+      .report-shell::before {
+        content: "";
+        position: absolute;
+        top: -1px;
+        left: 24px;
+        width: 72px;
+        height: 5px;
+        background: var(--signal);
       }
       .report-header {
         display: grid;
-        gap: 14px;
-        padding-bottom: 18px;
-        border-bottom: 1px solid var(--line);
+        gap: 18px;
+        padding: 14px 0 22px;
+        border-bottom: 1px solid var(--ink);
       }
       .brand-row {
         display: grid;
@@ -606,10 +616,10 @@ export function renderReportHtml(snapshot) {
       }
       .brand-mark {
         position: relative;
-        width: 22px;
-        height: 56px;
+        width: 20px;
+        height: 52px;
         border-radius: 999px;
-        background: var(--accent);
+        background: var(--ink);
       }
       .brand-mark span {
         position: absolute;
@@ -623,17 +633,19 @@ export function renderReportHtml(snapshot) {
         background: rgba(255, 255, 255, 0.88);
       }
       .report-header h1 {
-        margin: 8px 0 0;
-        font-size: clamp(2rem, 5vw, 2.9rem);
-        line-height: 0.96;
-        letter-spacing: -0.03em;
-        font-weight: 600;
+        max-width: 12ch;
+        margin: 10px 0 0;
+        font-size: clamp(2.35rem, 7vw, 4rem);
+        line-height: 0.92;
+        letter-spacing: -0.045em;
+        font-weight: 500;
       }
       .eyebrow {
         margin: 0;
         color: var(--muted);
-        font-size: 11px;
-        font-weight: 700;
+        font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+        font-size: 10px;
+        font-weight: 600;
         letter-spacing: 0.14em;
         text-transform: uppercase;
       }
@@ -651,8 +663,8 @@ export function renderReportHtml(snapshot) {
       .defect-card,
       .ai-note {
         border: 1px solid var(--line);
-        border-radius: 16px;
-        background: #fffefb;
+        border-radius: 2px;
+        background: var(--panel);
       }
       .meta-block,
       .summary-item,
@@ -661,19 +673,22 @@ export function renderReportHtml(snapshot) {
       }
       .field-label {
         margin: 0 0 6px;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.14em;
+        font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.1em;
         text-transform: uppercase;
       }
       .section {
-        margin-top: 18px;
+        margin-top: 24px;
       }
       .section h2 {
-        margin: 0 0 12px;
+        margin: 0 0 14px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--ink);
         font-size: 22px;
-        font-weight: 600;
-        letter-spacing: -0.03em;
+        font-weight: 500;
+        letter-spacing: -0.035em;
       }
       .summary-grid,
       .defect-grid,
@@ -689,11 +704,11 @@ export function renderReportHtml(snapshot) {
         line-height: 1.45;
       }
       .defect-card {
-        padding: 16px;
-        background: #fcfbf7;
+        padding: 18px;
+        background: var(--paper);
       }
       .defect-card + .defect-card {
-        margin-top: 12px;
+        margin-top: 8px;
       }
       .defect-card__header {
         display: grid;
@@ -703,8 +718,8 @@ export function renderReportHtml(snapshot) {
       .defect-card__header h3 {
         margin: 8px 0 0;
         font-size: 26px;
-        font-weight: 600;
-        letter-spacing: -0.03em;
+        font-weight: 500;
+        letter-spacing: -0.035em;
       }
       .photo-strip {
         margin-top: 16px;
@@ -714,9 +729,9 @@ export function renderReportHtml(snapshot) {
         margin: 0;
         min-height: 240px;
         overflow: hidden;
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        background: #ebe8df;
+        border: 1px solid var(--ink);
+        border-radius: 2px;
+        background: var(--panel-soft);
       }
       .inspection-photo img {
         display: block;
@@ -729,12 +744,13 @@ export function renderReportHtml(snapshot) {
         top: 10px;
         right: 10px;
         padding: 5px 8px;
-        border-radius: 999px;
-        background: rgba(251, 250, 246, 0.9);
-        border: 1px solid rgba(17, 22, 29, 0.12);
+        border-radius: 2px;
+        background: rgba(243, 241, 232, 0.9);
+        border: 1px solid rgba(21, 23, 24, 0.48);
         color: var(--ink-soft);
+        font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
         font-size: 10px;
-        font-weight: 600;
+        font-weight: 500;
         letter-spacing: 0.04em;
         text-transform: uppercase;
       }
@@ -744,11 +760,13 @@ export function renderReportHtml(snapshot) {
         bottom: 10px;
         margin: 0;
         padding: 7px 10px;
-        border-radius: 999px;
-        background: rgba(17, 22, 29, 0.84);
-        color: #fffdf0;
+        border-left: 3px solid var(--signal);
+        border-radius: 2px;
+        background: rgba(21, 23, 24, 0.9);
+        color: var(--panel);
+        font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
         font-size: 11px;
-        font-weight: 700;
+        font-weight: 500;
         letter-spacing: 0.02em;
       }
       .detection-overlay {
@@ -759,26 +777,26 @@ export function renderReportHtml(snapshot) {
       }
       .detection-overlay__mask {
         opacity: 0.88;
-        filter: saturate(108%) drop-shadow(0 0 6px rgba(255, 242, 63, 0.22));
+        filter: saturate(108%) drop-shadow(0 0 5px rgba(242, 230, 0, 0.28));
       }
       .detection-overlay__box {
-        fill: rgba(244, 234, 54, 0.12);
-        stroke: rgba(255, 242, 63, 1);
-        stroke-width: 2.4;
+        fill: rgba(242, 230, 0, 0.1);
+        stroke: var(--signal);
+        stroke-width: 3;
         vector-effect: non-scaling-stroke;
-        filter: drop-shadow(0 0 6px rgba(255, 242, 63, 0.45));
+        filter: drop-shadow(0 0 5px rgba(242, 230, 0, 0.48));
       }
       .detection-overlay__trace {
         fill: none;
-        stroke: rgba(255, 242, 63, 0.98);
-        stroke-width: 2.6;
+        stroke: var(--signal);
+        stroke-width: 3;
         stroke-linecap: round;
         stroke-linejoin: round;
         vector-effect: non-scaling-stroke;
-        filter: drop-shadow(0 0 5px rgba(255, 242, 63, 0.42));
+        filter: drop-shadow(0 0 4px rgba(242, 230, 0, 0.48));
       }
       .detection-overlay__trace--polygon {
-        fill: rgba(244, 234, 54, 0.08);
+        fill: rgba(242, 230, 0, 0.1);
       }
       .detection-overlay__region-label-bg {
         fill: rgba(20, 23, 27, 0.82);
@@ -795,13 +813,16 @@ export function renderReportHtml(snapshot) {
       .ai-note {
         margin-top: 16px;
         background: var(--panel-soft);
+        border-left: 4px solid var(--signal);
       }
       .footer {
         margin-top: 22px;
         padding-top: 18px;
-        border-top: 1px solid var(--line);
+        border-top: 1px solid var(--ink);
         color: var(--muted);
-        font-size: 14px;
+        font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+        font-size: 11px;
+        line-height: 1.5;
       }
       @media (min-width: 720px) {
         .report-header {
@@ -824,10 +845,12 @@ export function renderReportHtml(snapshot) {
           padding: 0;
         }
         .report-shell {
-          box-shadow: none;
           border: none;
           border-radius: 0;
           padding: 0;
+        }
+        .report-shell::before {
+          display: none;
         }
       }
     </style>

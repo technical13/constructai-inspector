@@ -2,14 +2,18 @@ import { access, readFile } from "node:fs/promises"
 import { constants } from "node:fs"
 
 const requiredFiles = [
+  "DESIGN.md",
   "public/index.html",
   "public/app.css",
   "public/app.js",
   "src/server.js",
   "src/api-handler.js",
   "src/report.js",
+  "src/inference-gateway.js",
+  "benchmarks/cv/manifest.json",
   "api/index.js",
-  "vercel.json"
+  "vercel.json",
+  ".vercelignore"
 ]
 
 for (const file of requiredFiles) {
@@ -17,7 +21,13 @@ for (const file of requiredFiles) {
 }
 
 const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8")
+const css = await readFile(new URL("../public/app.css", import.meta.url), "utf8")
+const design = await readFile(new URL("../DESIGN.md", import.meta.url), "utf8")
+const benchmark = JSON.parse(
+  await readFile(new URL("../benchmarks/cv/manifest.json", import.meta.url), "utf8")
+)
 const vercel = JSON.parse(await readFile(new URL("../vercel.json", import.meta.url), "utf8"))
+const vercelIgnore = await readFile(new URL("../.vercelignore", import.meta.url), "utf8")
 
 if (!html.includes('src="/app.js"')) {
   throw new Error("build: public/index.html does not reference /app.js")
@@ -27,4 +37,29 @@ if (!vercel.rewrites && !vercel.routes) {
   throw new Error("build: vercel.json has no routing configuration")
 }
 
-console.log("build: runtime assets and deployment manifest are present")
+for (const localOnlyPath of [
+  ".env.*",
+  ".venv-cv/",
+  "services/cv_inference/models/",
+  "data/"
+]) {
+  if (!vercelIgnore.split(/\r?\n/).includes(localOnlyPath)) {
+    throw new Error(`build: .vercelignore must exclude ${localOnlyPath}`)
+  }
+}
+
+if (!design.includes("# ConstructAI Inspector Design Contract")) {
+  throw new Error("build: DESIGN.md does not expose the product design contract")
+}
+
+if (!css.includes("--signal: #f2e600")) {
+  throw new Error("build: browser UI is not aligned with the design signal token")
+}
+
+if (benchmark.schemaVersion !== 1 || !Array.isArray(benchmark.cases)) {
+  throw new Error("build: CV benchmark manifest contract is invalid")
+}
+
+console.log(
+  "build: runtime assets, design contract, benchmark, and deployment manifest are present"
+)

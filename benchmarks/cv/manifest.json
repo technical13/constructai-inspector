@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "id": "constructai-crack-regression-v1",
+  "description": "Deterministic segmentation regression set for the current crack-mask pipeline.",
+  "referencePolicy": {
+    "kind": "curated-model-output",
+    "accuracyClaimAllowed": false,
+    "description": "References are operator-approved demo outputs, not independent human ground truth. They detect pipeline drift but cannot prove real-world accuracy."
+  },
+  "defaultModels": [
+    "grounded-sam2"
+  ],
+  "qualityGate": {
+    "aggregate": {
+      "dice": 0.75,
+      "iou": 0.6,
+      "recall": 0.7
+    },
+    "perCase": {
+      "dice": 0.5
+    },
+    "classification": {
+      "accuracy": 1.0
+    }
+  },
+  "cases": [
+    {
+      "id": "thin-crack",
+      "imagePath": "public/demo/images/crack-demo-1.jpg",
+      "expectedDefectType": "crack",
+      "reference": {
+        "kind": "scenario-mask",
+        "libraryPath": "public/demo/scenarios.json",
+        "scenarioId": "crack-demo-1"
+      },
+      "tags": ["thin", "vertical", "concrete"]
+    },
+    {
+      "id": "branching-crack",
+      "imagePath": "public/demo/images/crack-demo-2.jpg",
+      "expectedDefectType": "crack",
+      "reference": {
+        "kind": "scenario-mask",
+        "libraryPath": "public/demo/scenarios.json",
+        "scenarioId": "crack-demo-2"
+      },
+      "tags": ["branching", "concrete"]
+    },
+    {
+      "id": "field-crack",
+      "imagePath": "public/demo/images/demo-8de5bacd.jpg",
+      "expectedDefectType": "crack",
+      "reference": {
+        "kind": "scenario-mask",
+        "libraryPath": "public/demo/scenarios.json",
+        "scenarioId": "трещина-demo-8de5bacd"
+      },
+      "tags": ["field", "thin", "concrete"]
+    }
+  ]
+}

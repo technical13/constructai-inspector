@@ -3,6 +3,20 @@ function readNonEmptyEnv(name) {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : ""
 }
 
+function readBoundedInteger(name, fallback, minimum, maximum) {
+  const raw = readNonEmptyEnv(name)
+  if (raw === "") {
+    return fallback
+  }
+  const value = Number(raw)
+
+  if (!Number.isInteger(value) || value < minimum || value > maximum) {
+    return fallback
+  }
+
+  return value
+}
+
 function hasPostgresConfig() {
   return Boolean(readNonEmptyEnv("DATABASE_URL") || readNonEmptyEnv("POSTGRES_URL"))
 }
@@ -58,6 +72,12 @@ export function getCvInferenceUrl() {
     return explicit.replace(/\/$/, "")
   }
 
+  // A serverless deployment cannot reach the developer's loopback interface.
+  // Keep the local default only for an explicitly local runtime.
+  if (readNonEmptyEnv("VERCEL") !== "") {
+    return ""
+  }
+
   return "http://127.0.0.1:8001"
 }
 
@@ -96,4 +116,16 @@ export function getCvInferenceMode() {
   }
 
   return "external"
+}
+
+export function getCvInferenceTimeoutMs() {
+  return readBoundedInteger("CV_INFERENCE_TIMEOUT_MS", 120_000, 1_000, 600_000)
+}
+
+export function getCvInferenceMaxConcurrency() {
+  return readBoundedInteger("CV_INFERENCE_MAX_CONCURRENCY", 1, 1, 8)
+}
+
+export function getCvInferenceMaxQueue() {
+  return readBoundedInteger("CV_INFERENCE_MAX_QUEUE", 8, 0, 64)
 }
