@@ -1,154 +1,169 @@
-# Remediation And Evidence Readiness - 2026-10-17
+# Технический аудит и готовность демонстрации - 2026-10-17
 
-Overall status: **PARTIALLY READY**. The review defect is fixed and verified.
-The final evidence run has two original screenshots; automatic approval review
-blocked creation of the fictional session needed for frames 03-08. Manual
-continuation instructions are available. Production has not been changed.
+**READY**: локальный прототип и комплект новой браузерной съёмки технически проверены.
+**PARTIALLY READY**: публичная версия, поскольку публикация исправлений отдельно не разрешена.
 
-Code commit: `26b5befe8d2d3dc3fdcc5ed9d6e048ad337bae4a`.
-Local branch: `fix/explicit-ai-review-evidence`. No push or deployment performed.
-Risk classification: `HIGH`.
+Ветка: `fix/explicit-ai-review-evidence`.
+Основной коммит исправлений: `26b5befe8d2d3dc3fdcc5ed9d6e048ad337bae4a`.
+Финальная правка представления: `eabf234c3eae7c9843ba7635da7bef988a9b1c0a`.
+Классификация основного изменения: **HIGH**; последующая CSS-правка: **LOW**.
+Push, deployment и изменение production-данных не выполнялись.
 
 ## A. Root Cause Analysis
 
-- Keep manual only moved focus to a select; it never recorded an operator decision.
-- The finalizer equated suggested/final type equality with acceptance. Saving and
-  reanalysis therefore created confirmations without an Accept action.
-- Saved type edits preserved stale AI metadata. The PostgreSQL UPDATE also did
-  not persist any changed suggestion JSON.
-- Report SVG labels used raw Russian region text despite the English locale.
-  The reviewed demo raster contains no text; it was not modified.
-- Minimum photo heights and cover fitting could crop images independently from
-  normalized overlays. Model scores had no explicit model-score label.
+- Keep manual только переводил фокус на выбор типа, не записывая решение оператора.
+- Сервер выводил принятие AI из равенства предложенного и окончательного типов.
+  Это давало ложное подтверждение при сохранении и повторном анализе.
+- Редактирование типа сохраняло устаревшую AI-метаинформацию. Postgres UPDATE
+  дополнительно не записывал изменённый JSON подсказки.
+- Русская надпись в английском отчёте приходила из программного SVG-слоя.
+  Просмотренная оригинальная демо-фотография не содержит текста и не изменялась.
+- Минимальная высота и cover-масштабирование могли обрезать фото независимо от маски.
+  На планшетной миниатюре также пересекались шильдики модели и решения.
+- Значение score не имело достаточно явного пояснения о своей природе.
 
 ## B. Implemented Fixes
 
-- `public/ai-review.js`: shared pure decision transitions, labels, source/mode
-  disclosure, score wording, and localized region labels.
-- `src/domain.js`, `src/inference.js`: explicit review validation, stable suggestion
-  identity, independent type-match flag, pending reanalysis, and legacy read policy.
-- `src/local-store.js`, `src/postgres-store.js`: same domain contract for both
-  backends; Postgres persists review JSON and rejects edits/reanalysis that race
-  with another write. No column/data migration was required.
-- `public/app.js`, `public/index.html`: actionable Accept/Keep manual controls,
-  pressed-state feedback, decision indicator, review of saved records, translated
-  accessibility labels and runtime errors, explicit precomputed demo disclosure.
-- `src/report.js`: localized vector labels, saved review/provenance, source score,
-  independent snapshot copy, and image/mask geometry parity.
-- `public/app.css`: restrained wide-screen split, wrapping/min-width fixes and
-  natural image ratios. Existing Braun visual language retained.
-- `scripts/evidence-*.mjs`, `src/paths.js`: fresh local storage and non-overwriting
-  screenshot manifest tooling. No mandatory dependencies were added.
+- `public/ai-review.js`: единый чистый контракт переходов, состояний, локализации,
+  происхождения результата и отображения score.
+- `src/inference.js`, `src/domain.js`: явное решение, идентификатор подсказки,
+  отдельный признак совпадения типов, pending при новом анализе, безопасное legacy-чтение.
+- `src/local-store.js`, `src/postgres-store.js`: одинаковые правила сохранения;
+  Postgres записывает обновлённый JSON и отклоняет конкурентную перезапись с 409.
+- `public/app.js`, `public/index.html`: работающие Accept type / Keep manual,
+  выбранное состояние кнопок, индикатор решения, проверка сохранённых записей,
+  переведённые новые ошибки и accessibility-подписи, честное обозначение демо.
+- `src/report.js`: сохранённое решение и provenance, локализованные SVG-подписи,
+  отдельная копия snapshot, неизменённые числовые оценки модели.
+- `public/app.css`: естественные пропорции фото и маски, адаптивные ограничения,
+  широкая рабочая область без смены Braun DNA. Дублирующий статус миниатюры скрыт;
+  отдельный индикатор решения рядом с фото сохранён.
+- `scripts/evidence-*.mjs`, `src/paths.js`: изолированная локальная съёмка и
+  неперезаписываемые SHA-256 manifest. Новых обязательных зависимостей нет.
 
 ## C. State Consistency
 
-New records use `review = { version: 1, decision, reviewedAt }` inside existing
-`aiSuggestion` JSON. `status` mirrors this value for compatibility.
+Новые записи сохраняют `review = { version: 1, decision, reviewedAt }` внутри
+существующего `aiSuggestion`. Поле `status` отражает это решение для совместимости.
 
-| Saved decision | Meaning |
+| Состояние | Значение |
 | --- | --- |
-| `accepted` | Explicit Accept type action, final type matches suggestion. |
-| `corrected` | Operator changed the type away from the suggested type. |
-| `manual` | Keep manual, including coincidentally matching types. |
-| `pending_review` | No decision for the current suggestion. |
-| No suggestion | Manual entry. |
+| `accepted` | Явное Accept type; окончательный тип совпадает с подсказкой. |
+| `corrected` | Оператор изменил тип относительно предложения модели. |
+| `manual` | Keep manual, в том числе при совпадающем типе. |
+| `pending_review` | Для текущей подсказки решение ещё не принято. |
+| Нет подсказки | Ручной ввод без фиктивного подтверждения AI. |
 
-Type edits invalidate acceptance; manual stays manual. Reanalysis replaces the
-suggestion identity and starts pending. Saved review commands must identify the
-current suggestion; stale commands return 409. Old flags without a versioned
-review display as Review not recorded (legacy), without changing their bytes.
-Historical reports are not regenerated. New reports use saved snapshots only.
+Изменение типа инвалидирует принятие; ручной режим остаётся ручным. Новый анализ
+создаёт новую подсказку с pending. Команда проверки сохранённой записи должна
+ссылаться на текущий идентификатор подсказки; устаревшая команда получает 409.
+
+В браузерном сценарии реально сохранены `defectType = crack`,
+`review.decision = manual`, `typeMatchesSuggestion = true`, score `0.44`.
+После reload и в HTML-отчёте отображается Manual selection, не AI accepted.
+
+Миграция колонок и массовое изменение данных не потребовались. Старые флаги без
+версии review не доказывают действие человека: текущие представления показывают
+Review not recorded (legacy), не переписывая исходные записи. Исторические HTML
+не регенерируются; новые отчёты строятся из сохранённого snapshot.
 
 ## D. Localization
 
-Programmatic `Трещина` labels are translated to `Crack` in English vector
-overlays. Redundant labels on mask mode are suppressed consistently with the UI.
-Original photos and numeric scores are unchanged. User-authored data is not
-silently translated. Review states, demo disclosure, score explanations and new
-service errors have Russian/English presentation. A score is not claimed to be
-calibrated probability, validated accuracy, precision or recall.
+Программные подписи дефектов локализованы; лишняя подпись на маске убрана одинаково
+в UI и отчёте. Оригинальные растровые фотографии не ретушируются. Пользовательские
+тексты и названия моделей не переводятся произвольно.
+
+Английский сценарий пройден от проекта до HTML-отчёта. В видимом тексте проверенных
+экранов и английского документа кириллицы нет. Переключение RU / EN даёт «Ручной
+выбор» / Manual selection. Нативные файловые элементы браузера могут использовать
+локаль самого браузера; доступные подписи приложения переведены.
 
 ## E. Tests
 
-**READY**: full `npm run verify` on Node 24.22.0, 34/34 Node tests and 8/8 Python
-contracts. No failures or skips in the Postgres-enabled run.
+**READY**: полный `npm run verify` на Node 24.22.0:
+34/34 теста Node.js, 8/8 Python-контрактов, без падений и пропусков.
+Lint, проверка модульных контрактов, build, hygiene и audit прошли.
 
-- A/B/C/D: manual, explicit acceptance, correction, unavailable inference/manual entry.
-- E/F: real HTTP save/reload and report snapshot/status/byte immutability.
-- G/H/I: English SVG text, safe legacy reading, fresh/stale reanalysis review.
-- J: identical API suite on filesystem and actual disposable PostgreSQL 16.
-- Extra: Postgres inference/edit race returns 409 and preserves the edit.
+- A/B/C/D: ручной выбор, явное принятие, изменение типа, недоступный AI / ручной ввод.
+- E/F: сохранение и повторное чтение через HTTP API, согласованность и неизменность отчёта.
+- G/H/I: английский SVG, чтение legacy без перезаписи, новый анализ и устаревшее решение.
+- J: один API-набор на filesystem и настоящем временном PostgreSQL 16.
+- Дополнительно: конкурентное редактирование во время анализа даёт 409 и сохраняет правку.
 
-The CV endpoint in tests is a deterministic mock, not heavy live inference.
-Postgres tests reject non-local hosts and non-test database names. The temporary
-test database was independent of Neon. Audit retains the pre-existing warning
-about three orphan local uploads; none were removed.
+Тяжёлый CV в тестах заменён детерминированным mock. Production Neon не использовался.
+Audit сохранил одно известное предупреждение: три бесхозных локальных upload-файла.
+Они не удалены без проверки владельцем.
 
-Rehearsal in Chrome verified matching Crack + Keep manual -> saved Manual
-selection. Layout width checks at 390, 768, 1440 px found no horizontal page
-overflow in the inspected states. This is not an exhaustive device certification;
-the full final report/responsive screenshot sequence remains incomplete.
+В Chromium проверены форма с маской, сохранённый дефект и HTML-отчёт при
+390 x 844, 768 x 1024 и 1440 x 900: горизонтального переполнения нет, фото и SVG
+совпадают по размерам, основные кнопки решения/сохранения имеют высоту 50 px.
+Консоли приложения и отчёта без ошибок и предупреждений. Это не сертификация
+реальных мобильных устройств или Safari.
 
 ## F. Screenshot Evidence
 
-**PARTIALLY READY**: actual raw browser screenshots, October 17, 2026:
+**READY**: восемь реальных кадров сценария и три дополнительных responsive-кадра.
+Дата съёмки: 17 октября 2026 года. Chrome 155, EN, DPR 1,
+Asia/Novosibirsk, reduced motion. Основные восемь кадров имеют ширину 1440 px.
 
-- `01-project-setup.png`: 1440 x 1179, fictional project form.
-- `02-inspection-session.png`: 1440 x 935, fictional session form.
+Основной каталог: `logs/evidence-2026-10-17T13-10-54-172Z/`.
 
-Local artifact directory:
-`logs/evidence-2026-10-17T13-10-54-172Z/`.
+| Файлы | Расположение и source commit |
+| --- | --- |
+| 01 Project Setup, 02 Inspection Session | Основной каталог; `26b5befe8d2d3dc3fdcc5ed9d6e048ad337bae4a`. |
+| 03 Demo Mode, 04 AI Suggestion, 05 Human Review | `continuation/`; `16f3c4f3437cd5e38c6618d8be5dade146cd32f9`. |
+| 06 Saved Defect, 07 Generated Report, 08 HTML Report | `continuation/`; тот же `16f3c4f3437cd5e38c6618d8be5dade146cd32f9`. |
+| 09 Mobile, 10 Tablet, 11 Desktop | `continuation/`; `eabf234c3eae7c9843ba7635da7bef988a9b1c0a`. |
 
-The directory includes `browser-environment.json`, `capture-notes.md`,
-`verify-node24.log`, and `sha256-manifest.json`. The manifest records the code SHA
-above and a clean worktree at capture. PNGs were visually inspected after saving
-their original browser bytes, with no editing, montage or retouching.
+В каждом пакете есть собственный `sha256-manifest.json`; все хеши повторно проверены.
+Первоначальная остановка съёмки зафиксирована в неизменённом родительском пакете.
+После явного разрешения пользователя съёмка продолжена отдельным пакетом.
+Старые кадры и manifest не перезаписаны. Небольшая последующая CSS-правка отдельно
+отмечена; кадры разных ревизий не выдаются за одну и ту же ревизию.
 
-Chrome 155, English UI, 1440 x 900 viewport, DPR 1, Asia/Novosibirsk,
-reduced motion enabled. Full-page originals extend vertically beyond the viewport.
-Existing evidence archives were not overwritten. No external uploads occurred.
-
-**Not obtained in this final run:** 03 Demo Mode, 04 AI Suggestion, 05 Human Review,
-06 Saved Defect, 07 Generated Report, 08 HTML Report. Automatic approval review
-twice rejected the Open session click and explicitly required renewed user
-authorization despite confirming the fictional data and local-only storage.
-Do not substitute a mock image or claim these frames exist.
-
-Continuation: `docs/evidence-capture.md`. Any later captures need their own
-non-overwriting manifest; preserve the existing two original files and manifest.
+Сохранены фактические environment metadata, responsive-измерения, полный лог verify,
+исходный HTML, ответ API, fictional snapshot и оригинальная демо-фотография.
+Кадры не генерировались, не склеивались и не ретушировались; DOM для съёмки не подменялся.
+Артефакты находятся в игнорируемом `logs/`, не добавлены в Git и никуда не загружены.
+Raw HTML ссылается на локальный media API; исходная фотография также сохранена отдельно.
 
 ## G. Remaining Limitations
 
-- Historical human intent cannot be recovered from old inferred flags.
-- Public demo uses precomputed results. Live inference quality was not assessed
-  in this remediation; the existing model-output benchmark is not independent
-  accuracy evidence.
-- The prototype still has its documented limitations, including no enterprise
-  authentication/authorization and restricted external-Blob reanalysis.
-- Wide-screen functional checks passed for the inspected states, while the full
-  final screenshot/report sequence is awaiting authorization or manual capture.
+- Фактические решения человека для старых записей нельзя достоверно восстановить.
+- Публичное демо воспроизводит заранее рассчитанные результаты, не live inference.
+- Score не является калиброванной вероятностью, precision, recall или доказанной точностью.
+- Качество реальных CV-моделей в этом исправлении не оценивалось; существующий
+  model-generated benchmark не заменяет независимую разметку.
+- Сохраняются ограничения MVP: нет enterprise-аутентификации/ролей; повторный анализ
+  внешнего Blob ограничен текущим контрактом. Общая оценка безопасности конструкции не выдаётся.
+- Ширина и читаемость проверены в Chromium; отдельного real-device/Safari прогона не было.
 
 ## H. Deployment Status
 
-**PARTIALLY READY**: fixes are local and versioned. Public Vercel still runs its
-previous version. Production Postgres, existing records and historical documents
-were not changed. There is no destructive migration to roll back.
+**PARTIALLY READY**: исправления находятся только в локальных коммитах.
+Публичный Vercel остаётся на предыдущей версии. Production Postgres, существующие
+пользовательские записи и исторические документы не изменялись.
 
-After separate authorization: review the local commits, push/publish the chosen
-revision, deploy via the existing Vercel workflow, and perform read-only checks
-of demo provenance and the current UI. Any new write-based public smoke test
-needs explicit scope. Do not infer that local screenshots prove a public deploy.
+Для публикации требуется отдельное разрешение: проверить коммиты, выполнить push,
+развернуть выбранную ревизию существующим Vercel workflow и проверить публичный
+demo/read-only сценарий. Новые write-based проверки production требуют отдельного scope.
+Локальные снимки не являются доказательством обновления публичного URL.
 
-## I. Exhibit E-9 Technical Readiness
+## I. USCIS Exhibit E-9 Readiness
 
-**PARTIALLY READY**. The state/persistence/report implementation is **READY** under
-the stated tests. The complete screenshot package and updated public deployment
-are pending. No unresolved critical review-state defect was found after testing.
-This is a technical assessment of prototype evidence, not a legal conclusion
-about USCIS eligibility or evidentiary sufficiency.
+**READY** для достоверной локальной демонстрации технического workflow прототипа:
+решение оператора, сохранение, отчёт, происхождение маски и воспроизводимые артефакты.
+**PARTIALLY READY**, если комплект должен подтверждаться обновлённым публичным URL:
+публикация ещё не выполнена. Неустранённого критического дефекта review-state
+после указанных проверок не обнаружено.
 
-Scores (1-5): stability 4; risk surface 4; invariant confidence 5; test confidence 4.
+Это техническая оценка, не юридическое заключение о требованиях или достаточности
+доказательств USCIS.
 
-Remaining actions: authorize or manually finish frames 03-08, check the resulting
-English HTML and responsive views, create the continuation hash manifest, and
-separately authorize publication if the public URL must show the fix.
+Оценки 1-5: стабильность 4; risk surface 4; уверенность в инвариантах 5;
+уверенность в тестах 4. Переходы review имеют постоянную сложность, новых CV-вызовов
+нет, новые поля размещены в существующем JSON; производственная схема не менялась.
+
+Оставшиеся действия: отдельно разрешить публикацию, проверить развернутую ревизию,
+при необходимости провести real-device/Safari прогон. Независимая human-разметка
+нужна только для будущих обоснованных заявлений о качестве CV, не для показа workflow.
