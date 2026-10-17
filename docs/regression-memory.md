@@ -69,3 +69,4 @@ Whenever a regression is found or a fragile area is touched, append a dated note
 - `object-fit: cover` plus a minimum photo height could crop a photo independently of its SVG. Evidence photos now retain their natural ratio.
 - Reanalysis must not overwrite a concurrent edit in Postgres. A guarded UPDATE returns 409 and leaves the edited record intact.
 - Evidence capture uses `CONSTRUCTAI_DATA_DIR` and disabled inference. Never substitute generated screenshots or modify original evidence files.
+- Saved-thumbnail model/decision badges overlapped at tablet widths. Keep the model tag on the photo and the dedicated decision indicator beside it; check layout after two animation frames when changing emulated viewports.

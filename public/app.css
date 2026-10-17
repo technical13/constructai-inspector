@@ -1645,6 +1645,11 @@ summary:focus-visible {
   object-fit: contain;
 }
 
+/* Saved cards show the decision beside the thumbnail, not over the model tag. */
+.defect-item .inspection-photo__badge {
+  display: none;
+}
+
 @media (min-width: 1200px) {
   .app-shell {
     width: min(1120px, calc(100vw - 48px));

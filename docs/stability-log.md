@@ -67,3 +67,4 @@
 - Verification: 34 Node tests (including local filesystem and real disposable PostgreSQL parity) and 8 Python contracts; full verify passed.
 - Performance notes: Constant-size review transitions, optional JSON metadata only, no extra CV calls. Report snapshots own a deep copy of saved suggestion metadata.
 - Remaining risk surface: Existing legacy decisions cannot be reconstructed; live CV quality is not independently validated; production is intentionally unchanged pending separate deployment authorization; three original orphan uploads remain untouched.
+- Browser follow-up (`LOW`): Removed the redundant decision badge from saved thumbnails after discovering overlap with the model tag at 768 px. The dedicated adjacent decision indicator remains visible. The eight original workflow captures remain archived; post-fix responsive captures are kept separately.
