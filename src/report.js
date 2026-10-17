@@ -1,4 +1,5 @@
 import { getLocalizedDefectTypeMeta } from "./catalog.js"
+import { getReviewLabel, getModelScoreText, getAnalysisLabel, localizeRegionLabel } from "../public/ai-review.js"
 
 function normalizeReportLocale(locale) {
   return locale === "en" ? "en" : "ru"
@@ -17,6 +18,10 @@ const reportText = {
     notSpecified: "Не указано",
     aiSuggested: "AI предложил",
     aiFinal: "Финально сохранено",
+    decision: "Решение оператора",
+    reviewNote: "Решение относится к выбору типа дефекта, а не к оценке безопасности конструкции.",
+    scoreNote: "Оценка модели не калибрована как вероятность и не является независимо проверенной точностью.",
+    demoNote: "Демо: показана ранее полученная сегментационная маска. Новый анализ не выполнялся.",
     title: "Акт стройконтроля",
     reportTitle: "Акт фиксации дефектов",
     reportIntro: "Сформирован автоматически по сохранённым данным инспекции.",
@@ -44,6 +49,10 @@ const reportText = {
     notSpecified: "Not specified",
     aiSuggested: "AI suggested",
     aiFinal: "Final saved type",
+    decision: "Operator decision",
+    reviewNote: "The decision records the defect type selection, not a structural safety assessment.",
+    scoreNote: "The model score is not a calibrated probability or independently validated accuracy.",
+    demoNote: "Demo: this image uses a previously generated segmentation mask. No live inference was run.",
     title: "Construction inspection report",
     reportTitle: "Defect inspection report",
     reportIntro: "Generated automatically from the saved inspection data.",
@@ -166,28 +175,6 @@ function normalizeBoxForDisplay(rawBox) {
       ? Math.max(0, Math.min(1, Number(rawBox.confidence)))
       : 0
   }
-}
-
-function isGenericRegionLabel(label) {
-  const normalized = String(label || "")
-    .trim()
-    .toLowerCase()
-
-  return (
-    normalized === "" ||
-    normalized === "дефект" ||
-    normalized === "вероятная зона дефекта" ||
-    /^зона\s+\d+$/i.test(normalized) ||
-    /^zone\s+\d+$/i.test(normalized)
-  )
-}
-
-function getOverlayRegionLabel(regionLabel, fallbackLabel = "") {
-  if (!isGenericRegionLabel(regionLabel)) {
-    return String(regionLabel).trim()
-  }
-
-  return String(fallbackLabel || "").trim()
 }
 
 function normalizeRegionPoints(points) {
@@ -318,12 +305,10 @@ function getDisplayVisualEvidence(defect, locale) {
     regions: regions.map((region, index) => ({
       id: `region-${index + 1}`,
       kind: region.kind,
-      label: getOverlayRegionLabel(
+      label: localizeRegionLabel(
         region.label,
-        getLocalizedDefectTypeMeta(defect.aiSuggestion?.finalType || defect.aiSuggestion?.suggestedType, locale).label ||
-          defect.aiSuggestion?.finalTypeLabel ||
-          defect.aiSuggestion?.suggestedTypeLabel ||
-          ""
+        getLocalizedDefectTypeMeta(defect.aiSuggestion?.suggestedType, locale).label,
+        locale
       ),
       confidence: region.confidence,
       ...(region.kind === "box"
@@ -359,7 +344,7 @@ function renderVisualEvidence(visualEvidence, overlayLabel = "") {
       : ""
   const vectorMarkup = regions
     .map((region) => {
-      const regionLabel = getOverlayRegionLabel(region.label, overlayLabel)
+      const regionLabel = region.label || overlayLabel
       const bounds = region.bounds || getRegionBounds(region)
 
       if (!bounds) {
@@ -369,7 +354,7 @@ function renderVisualEvidence(visualEvidence, overlayLabel = "") {
       const labelWidth = Math.max(44, Math.round(regionLabel.length * 6.4))
       const labelX = Math.max(8, toViewBoxPoint(bounds.x, overlaySize.width) + 6)
       const labelY = Math.max(8, toViewBoxPoint(bounds.y, overlaySize.height) + 6)
-      const labelMarkup = regionLabel
+      const labelMarkup = regionLabel && renderMode !== "mask"
         ? `
           <g class="detection-overlay__region-label">
             <rect
@@ -435,24 +420,11 @@ function renderVisualEvidence(visualEvidence, overlayLabel = "") {
   `
 }
 
-function getSuggestionDecisionLabel(status, locale) {
-  if (status === "accepted") {
-    return tr(locale, "statusAccepted")
-  }
-
-  if (status === "corrected") {
-    return tr(locale, "statusCorrected")
-  }
-
-  return tr(locale, "statusPending")
-}
-
 function renderReportPhoto(photo, defect, locale) {
   const visualEvidence = getDisplayVisualEvidence(defect, locale)
   const overlay = renderVisualEvidence(
     visualEvidence,
-    getLocalizedDefectTypeMeta(defect.aiSuggestion?.finalType || defect.aiSuggestion?.suggestedType, locale).label ||
-      defect.aiSuggestion?.finalTypeLabel ||
+    getLocalizedDefectTypeMeta(defect.aiSuggestion?.suggestedType, locale).label ||
       defect.aiSuggestion?.suggestedTypeLabel ||
       ""
   )
@@ -468,7 +440,7 @@ function renderReportPhoto(photo, defect, locale) {
       }
       ${
         defect.aiSuggestion
-          ? `<figcaption class="inspection-photo__caption">${escapeHtml(getSuggestionDecisionLabel(defect.aiSuggestion.status, locale))}${visualEvidence ? ` · ${escapeHtml(tr(locale, "withVisualHighlight"))}` : ""}</figcaption>`
+          ? `<figcaption class="inspection-photo__caption">${escapeHtml(getReviewLabel(defect.aiSuggestion, locale))}${visualEvidence ? ` · ${escapeHtml(tr(locale, "withVisualHighlight"))}` : ""}</figcaption>`
           : ""
       }
     </figure>
@@ -499,7 +471,7 @@ export function buildReportSnapshot({ project, session, defects, reportLocale = 
       defectTypeLabel: getLocalizedDefectTypeMeta(defect.defectType, locale).label,
       comment: defect.comment,
       locationDescription: defect.locationDescription,
-      aiSuggestion: defect.aiSuggestion,
+      aiSuggestion: defect.aiSuggestion ? structuredClone(defect.aiSuggestion) : null,
       createdAt: defect.createdAt,
       photos: defect.photos.map((photo) => ({
         id: photo.id,
@@ -526,7 +498,7 @@ export function renderReportHtml(snapshot) {
           <div class="defect-card__header">
             <div>
               <p class="eyebrow">${escapeHtml(tr(locale, "defectTitle", { index: defect.index }))}</p>
-              <h3>${escapeHtml(defect.defectTypeLabel)}</h3>
+              <h3>${escapeHtml(getLocalizedDefectTypeMeta(defect.defectType, locale).label)}</h3>
             </div>
             <p class="muted">${escapeHtml(formatDateTime(defect.createdAt, locale))}</p>
           </div>
@@ -540,9 +512,12 @@ export function renderReportHtml(snapshot) {
               <p>${escapeHtml(defect.comment)}</p>
             </div>
           </div>
+          <p class="ai-note"><strong>${escapeHtml(tr(locale, "decision"))}: ${escapeHtml(getReviewLabel(defect.aiSuggestion, locale))}</strong>. ${escapeHtml(tr(locale, "reviewNote"))}</p>
           ${
             defect.aiSuggestion
-              ? `<p class="ai-note">${escapeHtml(tr(locale, "aiSuggested"))}: ${escapeHtml(getLocalizedDefectTypeMeta(defect.aiSuggestion.suggestedType, locale).label || defect.aiSuggestion.suggestedTypeLabel)} (${escapeHtml(String(Math.round((defect.aiSuggestion.confidence || 0) * 100)))}%). ${escapeHtml(tr(locale, "aiFinal"))}: ${escapeHtml(getLocalizedDefectTypeMeta(defect.aiSuggestion.finalType, locale).label || defect.aiSuggestion.finalTypeLabel)}.</p>`
+              ? `<p class="ai-note">${escapeHtml(tr(locale, "aiSuggested"))}: ${escapeHtml(getLocalizedDefectTypeMeta(defect.aiSuggestion.suggestedType, locale).label)}. ${escapeHtml(getModelScoreText(defect.aiSuggestion.confidence, locale))}. ${escapeHtml(tr(locale, "aiFinal"))}: ${escapeHtml(getLocalizedDefectTypeMeta(defect.defectType, locale).label)}. ${escapeHtml(defect.aiSuggestion.modelLabel || defect.aiSuggestion.sourceLabel)} · ${escapeHtml(getAnalysisLabel(defect.aiSuggestion, locale))}.</p>
+                <p class="ai-note">${escapeHtml(tr(locale, "scoreNote"))}</p>
+                ${defect.aiSuggestion.analysisMode === "precomputed_demo" ? `<p class="ai-note">${escapeHtml(tr(locale, "demoNote"))}</p>` : ""}`
               : ""
           }
           <div class="photo-strip">${photos}</div>
@@ -727,7 +702,7 @@ export function renderReportHtml(snapshot) {
       .inspection-photo {
         position: relative;
         margin: 0;
-        min-height: 240px;
+        min-height: 0;
         overflow: hidden;
         border: 1px solid var(--ink);
         border-radius: 2px;
@@ -736,8 +711,8 @@ export function renderReportHtml(snapshot) {
       .inspection-photo img {
         display: block;
         width: 100%;
-        min-height: 240px;
-        object-fit: cover;
+        height: auto;
+        object-fit: contain;
       }
       .inspection-photo__meta {
         position: absolute;

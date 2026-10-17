@@ -1,4 +1,6 @@
+import { randomUUID } from "node:crypto"
 import { defectCatalog, getDefectTypeMeta } from "./catalog.js"
+import { reviewDecisions, transitionReviewDecision } from "../public/ai-review.js"
 import { AppError } from "./app-error.js"
 import { requestInference } from "./inference-gateway.js"
 import { parseImageDataUrl } from "./image-data.js"
@@ -96,11 +98,11 @@ function getConfiguredCvModelSpecs() {
 function clampConfidence(value) {
   const numeric = Number(value)
 
-  if (!Number.isFinite(numeric)) {
-    return 0.5
+  if (value === null || value === undefined || !Number.isFinite(numeric)) {
+    return null
   }
 
-  return Math.max(0, Math.min(0.99, Number(numeric.toFixed(2))))
+  return Math.max(0, Math.min(1, numeric))
 }
 
 function normalizeTypeId(value) {
@@ -394,6 +396,8 @@ function createMockSuggestion(
   const visualEvidence = createVisualEvidence(fingerprint + modelOffset * 97, suggestedMeta.id)
 
   return {
+    suggestionId: randomUUID(),
+    analysisMode: "mock",
     source: "mock",
     sourceLabel: "Mock CV Adapter",
     modelKey: model.key,
@@ -437,6 +441,8 @@ async function requestExternalSuggestion(imageDataUrl, now, modelKey) {
   }
 
   const normalized = {
+    suggestionId: randomUUID(),
+    analysisMode: "live",
     source:
       typeof suggestion.source === "string" && suggestion.source.trim() !== ""
         ? suggestion.source.trim()
@@ -455,10 +461,7 @@ async function requestExternalSuggestion(imageDataUrl, now, modelKey) {
       suggestion.modelVersion.trim() !== ""
         ? suggestion.modelVersion.trim()
         : "unknown",
-    status:
-      typeof suggestion.status === "string" && suggestion.status.trim() !== ""
-        ? suggestion.status.trim()
-        : "pending_review",
+    status: "pending_review",
     suggestedType: normalizeTypeId(suggestion.suggestedType),
     suggestedTypeLabel: getDefectTypeMeta(normalizeTypeId(suggestion.suggestedType)).label,
     confidence: clampConfidence(suggestion.confidence),
@@ -482,6 +485,10 @@ export async function suggestDefectFromImage(
 ) {
   const modelKey = normalizeModelKey(options.modelKey || getDefaultCvModelKey())
   const mode = getCvInferenceMode()
+
+  if (mode === "disabled") {
+    throw new AppError(503, "Live AI analysis is disabled. Use a precomputed demo or manual entry.")
+  }
 
   if (mode === "mock") {
     return createMockSuggestion(imageDataUrl, now, modelKey)
@@ -564,7 +571,8 @@ export async function compareDefectSuggestions(
 export function finalizeAiSuggestion(
   suggestionInput,
   finalDefectType,
-  now = new Date().toISOString()
+  now = new Date().toISOString(),
+  { decision = "pending_review" } = {}
 ) {
   if (!suggestionInput || typeof suggestionInput !== "object") {
     return null
@@ -572,8 +580,15 @@ export function finalizeAiSuggestion(
 
   const suggestedType = normalizeTypeId(suggestionInput.suggestedType)
   const finalType = normalizeTypeId(finalDefectType)
+  validateReviewAction(decision, suggestedType, finalType)
+  const status = transitionReviewDecision("pending_review", decision, suggestedType, finalType)
 
   return {
+    suggestionId: suggestionInput.suggestionId || randomUUID(),
+    analysisMode: ["precomputed_demo", "mock", "live"].includes(suggestionInput.analysisMode)
+      ? suggestionInput.analysisMode
+      : suggestionInput.source === "mock" ? "mock" : "unknown",
+    demoScenarioId: typeof suggestionInput.demoScenarioId === "string" ? suggestionInput.demoScenarioId : "",
     source:
       typeof suggestionInput.source === "string" && suggestionInput.source.trim() !== ""
         ? suggestionInput.source.trim()
@@ -593,7 +608,9 @@ export function finalizeAiSuggestion(
       suggestionInput.modelVersion.trim() !== ""
         ? suggestionInput.modelVersion.trim()
         : "unknown",
-    status: suggestedType === finalType ? "accepted" : "corrected",
+    status,
+    review: { version: 1, decision: status, reviewedAt: status === "pending_review" ? null : now },
+    typeMatchesSuggestion: suggestedType === finalType,
     suggestedType,
     suggestedTypeLabel: getDefectTypeMeta(suggestedType).label,
     confidence: clampConfidence(suggestionInput.confidence),
@@ -608,7 +625,50 @@ export function finalizeAiSuggestion(
       suggestionInput.createdAt.trim() !== ""
         ? suggestionInput.createdAt
         : now,
-    reviewedAt: now,
+    reviewedAt: status === "pending_review" ? null : now,
+    finalType,
+    finalTypeLabel: getDefectTypeMeta(finalType).label
+  }
+}
+
+function validateReviewAction(decision, suggestedType, finalType) {
+  if (!reviewDecisions.includes(decision)) {
+    throw new AppError(400, "Invalid AI review decision.")
+  }
+  if (decision === "accepted" && suggestedType !== finalType) {
+    throw new AppError(400, "Accepting AI requires the suggested defect type.")
+  }
+}
+
+export function updateAiSuggestionReview(suggestion, previousType, finalType, input, now) {
+  if (!suggestion) {
+    if (input.aiDecision && input.aiDecision !== "manual") {
+      throw new AppError(400, "There is no AI suggestion to review.")
+    }
+    return null
+  }
+  const changedType = previousType !== finalType
+  const explicitDecision = input.aiDecision !== undefined
+  if (!changedType && !explicitDecision) return suggestion
+
+  if (explicitDecision) {
+    if (!suggestion.suggestionId || input.reviewSuggestionId !== suggestion.suggestionId) {
+      throw new AppError(409, "AI suggestion changed. Reload before reviewing it.")
+    }
+    validateReviewAction(input.aiDecision, suggestion.suggestedType, finalType)
+  }
+  const decision = transitionReviewDecision(
+    suggestion.review?.decision,
+    explicitDecision ? input.aiDecision : "type_changed",
+    suggestion.suggestedType,
+    finalType
+  )
+  return {
+    ...suggestion,
+    status: decision,
+    review: { version: 1, decision, reviewedAt: decision === "pending_review" ? null : now },
+    reviewedAt: decision === "pending_review" ? null : now,
+    typeMatchesSuggestion: suggestion.suggestedType === finalType,
     finalType,
     finalTypeLabel: getDefectTypeMeta(finalType).label
   }

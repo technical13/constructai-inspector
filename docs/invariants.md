@@ -12,6 +12,9 @@
 8. Every external inference attempt has a finite deadline, active-concurrency limit, and finite queue.
 9. A benchmark reference records its provenance; only independently human-annotated references may support accuracy claims.
 10. An unavailable model adapter must not prevent independent adapters from starting or reporting readiness.
+11. A matching suggested/final type never proves acceptance. New reviews have `review.version=1` and an explicit decision independent of `typeMatchesSuggestion`.
+12. `manual` survives saving and subsequent type edits until the operator explicitly changes the review. A new inference result starts pending and has a new `suggestionId`.
+13. Legacy status flags without a versioned review are not evidence of an explicit human action. Reading them must not rewrite stored data or historical HTML.
 
 ## State Mutation Discipline
 
@@ -35,7 +38,9 @@
 
 ## Deterministic State Transitions
 
-- `pending_review -> accepted|corrected` is explicit
+- `pending_review -> accepted|corrected|manual` follows an operator action
+- changing an accepted type yields `corrected`; returning to the suggested type yields `pending_review`, never implicit acceptance
+- saved review actions identify the current `suggestionId`; stale actions return HTTP 409
 - defect save is explicit
 - report generation is explicit
 - deletion is explicit and must not mutate already stored report snapshots

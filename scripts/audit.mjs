@@ -236,12 +236,11 @@ async function auditCvBenchmark() {
 async function auditSourceGraph() {
   const sourceFiles = (
     await Promise.all(
-      ["api", "scripts", "src", "test"].map((dir) =>
+      ["api", "scripts", "src", "test", "public"].map((dir) =>
         collectFiles(dir, new Set([".js", ".mjs"]))
       )
     )
   ).flat()
-  sourceFiles.push(path.join("public", "app.js"))
 
   const sourceSet = new Set(sourceFiles.map((file) => path.normalize(file)))
   const entryFiles = new Set([
@@ -302,7 +301,7 @@ async function auditBrowserContracts() {
   }
 
   const translationKeys = [
-    ...html.matchAll(/data-i18n(?:-placeholder)?="([^"]+)"/g)
+    ...html.matchAll(/data-i18n(?:-placeholder|-aria-label)?="([^"]+)"/g)
   ].map((match) => match[1])
   for (const key of new Set(translationKeys)) {
     const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")

@@ -119,5 +119,5 @@ const server = createServer(async (request, response) => {
 })
 
 server.listen(port, host, () => {
-  console.log(`ConstructAI Inspector is running on http://${host}:${port}`)
+  console.log(`ConstructAI Inspector is running on http://${host}:${server.address().port}`)
 })

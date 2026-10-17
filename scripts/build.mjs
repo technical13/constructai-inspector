@@ -6,6 +6,7 @@ const requiredFiles = [
   "public/index.html",
   "public/app.css",
   "public/app.js",
+  "public/ai-review.js",
   "src/server.js",
   "src/api-handler.js",
   "src/report.js",

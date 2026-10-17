@@ -121,6 +121,9 @@ async function ensureSchema() {
         create index if not exists idx_reports_session_created_at
         on reports (session_id, created_at)
       `
+    }).catch((error) => {
+      schemaPromise = null
+      throw error
     })
   }
 
@@ -443,10 +446,7 @@ export async function createDefect(input) {
     parsed.buffer
   )
   const defect = createDefectRecord(
-    {
-      ...input,
-      aiSuggestion: finalizeAiSuggestion(input.aiSuggestion, input.defectType)
-    },
+    input,
     photo
   )
 
@@ -506,15 +506,21 @@ export async function updateDefect(defectId, input) {
 
   const updatedDefect = updateDefectRecord(mapDefectRow(rows[0]), input)
 
-  await sql`
+  const changed = await sql`
     update defects
     set
       defect_type = ${updatedDefect.defectType},
       comment = ${updatedDefect.comment},
       location_description = ${updatedDefect.locationDescription},
+      ai_suggestion_text = ${serializeJson(updatedDefect.aiSuggestion, null)},
       updated_at = ${updatedDefect.updatedAt}
-    where id = ${defectId}
+    where id = ${defectId} and updated_at = ${rows[0].updated_at}
+    returning id
   `
+
+  if (changed.length === 0) {
+    throw new AppError(409, "The defect changed. Reload before saving it.")
+  }
 
   return clone(updatedDefect)
 }
@@ -600,13 +606,18 @@ export async function reanalyseDefect(defectId, input = {}) {
     updatedAt: now
   }
 
-  await sql`
+  const changed = await sql`
     update defects
     set
       ai_suggestion_text = ${serializeJson(updatedDefect.aiSuggestion, null)},
       updated_at = ${updatedDefect.updatedAt}
-    where id = ${defectId}
+    where id = ${defectId} and updated_at = ${rows[0].updated_at}
+    returning id
   `
+
+  if (changed.length === 0) {
+    throw new AppError(409, "The defect changed during analysis. Reload and analyze again.")
+  }
 
   return clone(updatedDefect)
 }

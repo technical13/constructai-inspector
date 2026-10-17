@@ -232,10 +232,7 @@ export async function createDefect(input) {
 
       const photo = await savePhoto(input.imageDataUrl)
       const defect = createDefectRecord(
-        {
-          ...input,
-          aiSuggestion: finalizeAiSuggestion(input.aiSuggestion, input.defectType)
-        },
+        input,
         photo
       )
 

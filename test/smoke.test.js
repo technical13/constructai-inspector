@@ -500,7 +500,8 @@ test("finalized AI suggestion tracks whether operator accepted or corrected it",
       createdAt: "2026-04-13T10:00:00.000Z"
     },
     "crack",
-    "2026-04-13T10:05:00.000Z"
+    "2026-04-13T10:05:00.000Z",
+    { decision: "accepted" }
   )
   const corrected = finalizeAiSuggestion(
     {
@@ -528,7 +529,8 @@ test("finalized AI suggestion tracks whether operator accepted or corrected it",
       createdAt: "2026-04-13T10:00:00.000Z"
     },
     "leakage",
-    "2026-04-13T10:05:00.000Z"
+    "2026-04-13T10:05:00.000Z",
+    { decision: "corrected" }
   )
 
   assert.equal(accepted.status, "accepted")
@@ -558,7 +560,7 @@ test("legacy CV void type is normalized to the honeycombing domain type", () => 
 
   assert.equal(suggestion.suggestedType, "honeycombing")
   assert.equal(suggestion.finalType, "honeycombing")
-  assert.equal(suggestion.status, "accepted")
+  assert.equal(suggestion.status, "pending_review")
 })
 
 test("legacy report photo references retain a resolvable local asset identity", () => {
@@ -751,7 +753,7 @@ test("demo scenario can be saved from a successful local analysis", async () => 
     "A crack has been detected. Clarify the location, extent, and visible characteristics of the defect."
   )
   assert.equal(payload.scenarios[0].suggestion.finalType, "crack")
-  assert.equal(payload.scenarios[0].suggestion.status, "accepted")
+  assert.equal(payload.scenarios[0].suggestion.status, "pending_review")
   assert.match(payload.scenarios[0].imageUrl, /^\/demo\/images\/.+\.png$/)
   assert.doesNotMatch(path.basename(payload.scenarios[0].imageUrl), /[^\x00-\x7F]/)
   await fs.access(imagePath)

@@ -92,6 +92,7 @@ export function getDefaultCvModelKey() {
 }
 
 export function getCvModelUrl(modelKey) {
+  if (getCvInferenceMode() === "disabled") return ""
   switch ((modelKey || "").trim()) {
     case "deepcrack":
       return readNonEmptyEnv("DEEPCRACK_INFERENCE_URL") || getCvInferenceUrl()
@@ -111,7 +112,7 @@ export function getCvModelUrl(modelKey) {
 export function getCvInferenceMode() {
   const explicit = readNonEmptyEnv("CV_INFERENCE_MODE").toLowerCase()
 
-  if (explicit === "mock" || explicit === "external" || explicit === "auto") {
+  if (["mock", "external", "auto", "disabled"].includes(explicit)) {
     return explicit
   }
 

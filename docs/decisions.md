@@ -1,5 +1,15 @@
 # Decisions
 
+## 2026-10-17: Explicit Review And Evidence Readiness
+
+- Risk: `HIGH` (persisted decision semantics and report provenance).
+- Store an additive, versioned review inside existing suggestion JSON; keep `status` as a compatibility mirror for new writes. Do not migrate old rows or regenerate old documents.
+- Only an explicit Accept action can yield `accepted`. Type equality is stored independently. Fresh inference always starts pending; saved review actions identify the suggestion they address.
+- Existing ambiguous flags display as legacy/unverified without altering their stored form.
+- Use the same domain constructors and pure review contract for filesystem and Postgres. Postgres edits persist updated review JSON and reject stale concurrent writes.
+- Demo results retain their original scores and masks, with explicit `precomputed_demo` provenance. Mock results are visibly identified as test output.
+- Capture only local fictional data in a unique ignored evidence directory. No push, production deployment, production writes, or historical-evidence replacement is part of this remediation.
+
 ## 2026-07-15: Public Vercel Boundary
 
 - Decision: deploy the browser UI and Node API to Vercel with free Neon Postgres persistence.

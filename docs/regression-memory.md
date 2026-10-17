@@ -59,3 +59,13 @@ Whenever a regression is found or a fragile area is touched, append a dated note
 - A Vercel runtime without an explicit CV endpoint previously inherited `127.0.0.1:8001` and advertised models as configured. Loopback defaults are now local-only.
 - Locally added demo scenarios may contain only Russian source text. English UI must derive deterministic localized demo metadata and comments instead of leaking Russian fallback text.
 - Production smoke tests must clean up temporary Postgres projects and sessions after asserting write/read behavior.
+
+## 2026-10-17 Human Review Remediation
+
+- Keep manual previously only focused the select. The server inferred acceptance from type equality, including after reanalysis. New review metadata is explicit and defaults to pending.
+- Saved type edits previously retained stale suggestion final types/statuses; Postgres also omitted updated suggestion JSON from its UPDATE. Both adapters now use the shared domain mutation.
+- Legacy accepted/corrected flags cannot establish a real click. Preserve old bytes and label their decision as unrecorded in current views/new reports.
+- Report SVG labels previously retained Russian `Трещина` in EN and rendered a label even on mask mode. UI/report now share localized labels; masks have no redundant region label.
+- `object-fit: cover` plus a minimum photo height could crop a photo independently of its SVG. Evidence photos now retain their natural ratio.
+- Reanalysis must not overwrite a concurrent edit in Postgres. A guarded UPDATE returns 409 and leaves the edited record intact.
+- Evidence capture uses `CONSTRUCTAI_DATA_DIR` and disabled inference. Never substitute generated screenshots or modify original evidence files.

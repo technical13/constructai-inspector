@@ -49,3 +49,27 @@ The checked-in `constructai-crack-regression-v1` references are approved histori
 outputs. They test reproducibility and drift, not real-world accuracy. Accuracy ranking
 requires a separate manifest with independently human-annotated masks and
 `referencePolicy.kind = human-annotated`.
+
+## Human Review Regressions
+
+`test/review-state.test.js` covers explicit manual/accepted/corrected/pending
+decisions, legacy reads, independent snapshot ownership, English SVG labels,
+unaltered scores, and stale suggestion review rejection.
+
+`test/storage-review.test.js` runs the real HTTP API against a temporary local
+data directory and a deterministic mock CV endpoint. It checks create, edit,
+reload, report immutability, unavailable inference, reanalysis, and saved review.
+The identical suite runs against optional local Postgres when
+`TEST_DATABASE_URL` points to a localhost database named `constructai_test_*`.
+Production hosts are rejected before any SQL is executed. No mandatory new
+infrastructure dependency was added.
+
+Example with a disposable local PostgreSQL instance:
+
+```bash
+TEST_DATABASE_URL=postgres://postgres@127.0.0.1:5432/constructai_test_review npm run verify
+```
+
+Without that variable, Postgres integration is explicitly skipped; the local
+suite and shared domain tests still run. Browser capture instructions are in
+`docs/evidence-capture.md`.

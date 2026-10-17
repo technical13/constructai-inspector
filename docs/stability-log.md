@@ -55,3 +55,15 @@
 - Test confidence: `5`
 - Performance notes: Deployment input was reduced from 703 MB/21,107 files to 1.8 MB/83 files; public requests do not load Python models.
 - Remaining risk surface: online inference is intentionally unavailable; GitHub auto-deploy depends on granting the Vercel GitHub App repository access; three local orphan uploads remain untouched.
+
+## 2026-10-17 Explicit Review Remediation
+
+- Change summary: Replaced inferred AI acceptance with explicit versioned review; aligned UI/domain/storage/report; localized SVG labels and score/provenance text; preserved natural photo geometry; added isolated API tests and evidence-capture tooling.
+- Risk classification: `HIGH`
+- Stability score: `4`
+- Risk surface score: `4`
+- Invariant confidence: `5`
+- Test confidence: `4`
+- Verification: 34 Node tests (including local filesystem and real disposable PostgreSQL parity) and 8 Python contracts; full verify passed.
+- Performance notes: Constant-size review transitions, optional JSON metadata only, no extra CV calls. Report snapshots own a deep copy of saved suggestion metadata.
+- Remaining risk surface: Existing legacy decisions cannot be reconstructed; live CV quality is not independently validated; production is intentionally unchanged pending separate deployment authorization; three original orphan uploads remain untouched.

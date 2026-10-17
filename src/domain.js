@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto"
+import { finalizeAiSuggestion, updateAiSuggestionReview } from "./inference.js"
 
 function requireNonEmptyString(value, fieldName) {
   if (typeof value !== "string" || value.trim() === "") {
@@ -54,7 +55,9 @@ export function createDefectRecord(input, photo, now = new Date().toISOString())
     comment: normalizeDefectComment(input.comment),
     locationDescription: normalizeOptionalString(input.locationDescription),
     photos: [photo],
-    aiSuggestion: input.aiSuggestion ?? null,
+    aiSuggestion: finalizeAiSuggestion(input.aiSuggestion, input.defectType, now, {
+      decision: input.aiDecision
+    }),
     engineeringEvaluation: null,
     createdAt: now,
     updatedAt: now
@@ -62,9 +65,13 @@ export function createDefectRecord(input, photo, now = new Date().toISOString())
 }
 
 export function updateDefectRecord(defect, input, now = new Date().toISOString()) {
+  const defectType = normalizeDefectType(input.defectType)
   return {
     ...defect,
-    defectType: normalizeDefectType(input.defectType),
+    defectType,
+    aiSuggestion: updateAiSuggestionReview(
+      defect.aiSuggestion, defect.defectType, defectType, input, now
+    ),
     comment: normalizeDefectComment(input.comment),
     locationDescription: normalizeOptionalString(input.locationDescription),
     updatedAt: now

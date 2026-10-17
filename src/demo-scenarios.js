@@ -111,7 +111,8 @@ export async function saveDemoScenario(input, options = {}) {
   const finalSuggestion = finalizeAiSuggestion(
     input.suggestion,
     finalType,
-    new Date().toISOString()
+    new Date().toISOString(),
+    { decision: input.aiDecision }
   )
 
   if (!finalSuggestion?.visualEvidence) {

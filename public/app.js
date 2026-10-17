@@ -1,3 +1,8 @@
+import {
+  getReviewLabel, transitionReviewDecision,
+  getModelScoreText, getAnalysisLabel, localizeRegionLabel
+} from "./ai-review.js"
+
 const state = {
   defectCatalog: [],
   projects: [],
@@ -12,6 +17,7 @@ const state = {
   activeDemoScenarioId: "",
   pendingImageDataUrl: "",
   pendingSuggestion: null,
+  aiDecision: "pending_review",
   comparisonResults: [],
   suggestionStatus: "idle",
   suggestionError: "",
@@ -55,8 +61,8 @@ const translations = {
     "defect.photoTitle": "Фиксация дефекта",
     "demo.eyebrow": "Demo Mode",
     "demo.title": "Демо-примеры",
-    "demo.meta": "сохранённый результат",
-    "demo.note": "Выберите пример и посмотрите маску.",
+    "demo.meta": "Результаты рассчитаны заранее",
+    "demo.note": "Показывается ранее полученная маска. Новый анализ не запускается.",
     "demo.saveEyebrow": "Demo Mode",
     "demo.saveTitle": "Добавить в демо",
     "demo.saveCopy": "Если результат удачный, добавьте этот кейс в публичную demo-подборку.",
@@ -135,8 +141,8 @@ const translations = {
     "defect.photoTitle": "Capture defect",
     "demo.eyebrow": "Demo Mode",
     "demo.title": "Demo examples",
-    "demo.meta": "saved result",
-    "demo.note": "Pick an example and view the mask.",
+    "demo.meta": "Precomputed AI results",
+    "demo.note": "This example uses a previously generated segmentation mask. No live inference runs.",
     "demo.saveEyebrow": "Demo Mode",
     "demo.saveTitle": "Add to demo",
     "demo.saveCopy": "If the result looks good, add this case to the public demo set.",
@@ -410,6 +416,10 @@ function applyLocaleToStaticUi() {
     node.placeholder = t(node.dataset.i18nPlaceholder)
   })
 
+  document.querySelectorAll("[data-i18n-aria-label]").forEach((node) => {
+    node.setAttribute("aria-label", t(node.dataset.i18nAriaLabel))
+  })
+
   elements.localeButtons.forEach((button) => {
     button.classList.toggle("is-active", button.dataset.localeSwitch === state.locale)
   })
@@ -465,7 +475,7 @@ function formatDate(value) {
 }
 
 function formatConfidence(value) {
-  return `${Math.round(Number(value ?? 0) * 100)}%`
+  return getModelScoreText(value, state.locale)
 }
 
 function clampUnit(value) {
@@ -531,26 +541,8 @@ function normalizeBoxForDisplay(rawBox) {
   }
 }
 
-function isGenericRegionLabel(label) {
-  const normalized = String(label || "")
-    .trim()
-    .toLowerCase()
-
-  return (
-    normalized === "" ||
-    normalized === "дефект" ||
-    normalized === "вероятная зона дефекта" ||
-    /^зона\s+\d+$/i.test(normalized) ||
-    /^zone\s+\d+$/i.test(normalized)
-  )
-}
-
 function getOverlayRegionLabel(regionLabel, fallbackLabel = "") {
-  if (!isGenericRegionLabel(regionLabel)) {
-    return String(regionLabel).trim()
-  }
-
-  return String(fallbackLabel || "").trim()
+  return localizeRegionLabel(regionLabel, fallbackLabel, state.locale)
 }
 
 function getOverlaySize(visualEvidence) {
@@ -697,8 +689,20 @@ function getCvModelLabel(modelKey) {
 }
 
 function localizeRuntimeText(message) {
-  if (state.locale !== "en" || typeof message !== "string") {
+  if (typeof message !== "string") {
     return message
+  }
+  if (state.locale !== "en") {
+    return new Map([
+      ["Invalid AI review decision.", "Некорректное решение по AI-подсказке."],
+      ["Accepting AI requires the suggested defect type.", "Для принятия AI выберите предложенный тип дефекта."],
+      ["There is no AI suggestion to review.", "Нет AI-подсказки для проверки."],
+      ["AI suggestion changed. Reload before reviewing it.", "AI-подсказка изменилась. Обновите запись перед проверкой."],
+      ["The defect changed. Reload before saving it.", "Дефект изменился. Обновите запись перед сохранением."],
+      ["The defect changed during analysis. Reload and analyze again.", "Дефект изменился во время анализа. Обновите запись и повторите анализ."],
+      ["Live AI analysis is disabled. Use a precomputed demo or manual entry.", "AI-анализ отключён. Выберите сохранённое демо или ручной ввод."],
+      ["Live analysis is unavailable. Use a precomputed demo or manual entry.", "AI-анализ недоступен. Выберите сохранённое демо или ручной ввод."]
+    ]).get(message) || message
   }
 
   const reportMatch = /^Акт v(\d+) сформирован\.$/.exec(message)
@@ -730,6 +734,8 @@ function localizeRuntimeText(message) {
   if (inferenceErrorMatch) {
     return `CV inference service returned error ${inferenceErrorMatch[1]}.`
   }
+  const timeoutMatch = /^CV inference превысил лимит (\d+) мс\.$/.exec(message)
+  if (timeoutMatch) return `CV inference exceeded the ${timeoutMatch[1]} ms deadline.`
 
   const modelNotConfiguredMatch = /^Модель (.+) ещё не подключена\.(.+)$/u.exec(message)
 
@@ -785,6 +791,9 @@ function localizeRuntimeText(message) {
     ["Изображение не содержит данных.", "The image contains no data."],
     ["Для AI-подсказки требуется изображение.", "An image is required for AI analysis."],
     ["CV inference service вернул некорректный ответ.", "CV inference service returned an invalid response."],
+    ["CV inference service вернул невалидный JSON.", "CV inference service returned invalid JSON."],
+    ["CV inference service недоступен.", "CV inference service is unavailable."],
+    ["Очередь CV inference заполнена. Дождитесь завершения текущего анализа.", "The inference queue is full. Wait for the current analysis to finish."],
     ["CV inference service недоступен. Запустите DeepCrack adapter или переключите режим AI.", "CV inference service is unavailable. Start the DeepCrack adapter or switch the AI mode."],
     ["Нет подключённых AI-моделей для сравнения. Подключите хотя бы один endpoint.", "No connected AI models are available for comparison. Connect at least one endpoint."],
     ["Ни одна AI-модель не смогла обработать изображение.", "No AI model was able to process the image."],
@@ -1081,16 +1090,8 @@ function renderPhotoFigure({
   `
 }
 
-function getSuggestionDecisionLabel(status) {
-  if (status === "accepted") {
-    return state.locale === "en" ? "AI accepted" : "AI подтверждён"
-  }
-
-  if (status === "corrected") {
-    return state.locale === "en" ? "AI corrected" : "AI исправлен"
-  }
-
-  return state.locale === "en" ? "AI suggestion" : "AI подсказка"
+function getSuggestionDecisionLabel(suggestion) {
+  return getReviewLabel(suggestion, state.locale)
 }
 
 async function api(path, options = {}) {
@@ -1153,6 +1154,8 @@ function resetDemoSaveState() {
 }
 
 function resetSuggestionState() {
+  state.suggestionRequestId += 1
+  state.aiDecision = "pending_review"
   state.pendingSuggestion = null
   state.comparisonResults = []
   state.suggestionStatus = "idle"
@@ -1495,9 +1498,13 @@ function renderPhotoPreview() {
   const previewClasses = ["photo-preview", "photo-preview--active"]
 
   if (state.suggestionStatus === "loading") {
-    badgeText = state.locale === "en" ? "AI is analyzing" : "AI анализирует"
-    figureClass = "inspection-photo--analysis-pending"
-    previewClasses.push("photo-preview--analyzing")
+    badgeText = state.activeDemoScenarioId
+      ? state.locale === "en" ? "Loading saved mask" : "Загрузка сохранённой маски"
+      : state.locale === "en" ? "AI is analyzing" : "AI анализирует"
+    if (!state.activeDemoScenarioId) {
+      figureClass = "inspection-photo--analysis-pending"
+      previewClasses.push("photo-preview--analyzing")
+    }
   } else if (state.suggestionStatus === "error") {
     badgeText = state.locale === "en" ? "AI unavailable" : "AI недоступен"
   } else if (regionCount > 0) {
@@ -1590,6 +1597,14 @@ function renderDemoSavePanel() {
 function renderSuggestionPanel() {
   renderPhotoPreview()
   renderDemoSavePanel()
+  const decision = state.pendingSuggestion ? state.aiDecision : "manual_entry"
+  for (const [button, value] of [
+    [elements.acceptSuggestionButton, "accepted"],
+    [elements.dismissSuggestionButton, "manual"]
+  ]) {
+    button.setAttribute("aria-pressed", String(decision === value))
+    button.classList.toggle("is-selected", decision === value)
+  }
 
   if (!state.pendingImageDataUrl) {
     elements.suggestionPanel.classList.add("hidden")
@@ -1602,7 +1617,9 @@ function renderSuggestionPanel() {
 
   if (state.suggestionStatus === "loading") {
     elements.suggestionContent.innerHTML =
-      `<p class="inline-note">${escapeHtml(state.locale === "en" ? "Comparing available models on the same photo." : "Сравнение доступных моделей на одном фото.")}</p>`
+      `<p class="inline-note">${escapeHtml(state.activeDemoScenarioId
+        ? state.locale === "en" ? "Loading the saved demo result." : "Загрузка сохранённого демо-результата."
+        : state.locale === "en" ? "Comparing available models on the same photo." : "Сравнение доступных моделей на одном фото.")}</p>`
     elements.acceptSuggestionButton.disabled = true
     elements.dismissSuggestionButton.disabled = true
     renderDemoSavePanel()
@@ -1611,7 +1628,7 @@ function renderSuggestionPanel() {
 
   if (state.suggestionStatus === "error") {
     elements.suggestionContent.innerHTML = `
-      <p class="inline-note">${escapeHtml(state.locale === "en" ? "AI suggestion is currently unavailable" : "AI-подсказка сейчас недоступна")}: ${escapeHtml(state.suggestionError)}.</p>
+      <p class="inline-note">${escapeHtml(state.locale === "en" ? "AI suggestion is currently unavailable" : "AI-подсказка сейчас недоступна")}: ${escapeHtml(localizeRuntimeText(state.suggestionError))}</p>
       <p class="inline-note">${escapeHtml(state.locale === "en" ? "Continue manually." : "Продолжайте вручную.")}</p>
     `
     elements.acceptSuggestionButton.disabled = true
@@ -1630,9 +1647,7 @@ function renderSuggestionPanel() {
   }
 
   const suggestion = state.pendingSuggestion
-  const currentType = getDefectMeta(elements.defectTypeSelect.value)
   const suggestedType = getDefectMeta(suggestion.suggestedType)
-  const matchesCurrentSelection = currentType.id === suggestedType.id
   const regionCount = getVisualRegionCount(
     getDisplayVisualEvidence(suggestion.visualEvidence)
   )
@@ -1646,9 +1661,14 @@ function renderSuggestionPanel() {
   elements.suggestionContent.innerHTML = `
     <div class="tag-row">
       <span class="tag">${escapeHtml(suggestion.modelLabel || suggestion.sourceLabel)}</span>
-      <span class="tag">${escapeHtml(formatConfidence(suggestion.confidence))}</span>
+      <span class="tag">${escapeHtml(getModelScoreText(suggestion.confidence, state.locale))}</span>
     </div>
     <p><strong>${escapeHtml(suggestedType.label)}</strong></p>
+    <p class="inline-note">${escapeHtml(getAnalysisLabel(suggestion, state.locale))}</p>
+    <p class="review-indicator" data-review-decision="${state.aiDecision}">${escapeHtml(getReviewLabel({ review: { version: 1, decision: state.aiDecision } }, state.locale))}</p>
+    <p class="inline-note">${escapeHtml(state.locale === "en"
+      ? "The score is an uncalibrated model output, not validated accuracy. Review records your type selection, not a structural safety assessment."
+      : "Оценка модели не является проверенной точностью. Решение фиксирует выбор типа, а не оценку безопасности конструкции.")}</p>
     ${
       regionCount > 0
         ? `<p class="inline-note">${escapeHtml(state.locale === "en" ? `Highlighted ${formatRegionCount(regionCount)} on the main photo.` : `На главном фото выделено ${formatRegionCount(regionCount)}.`)}</p>`
@@ -1675,7 +1695,7 @@ function renderSuggestionPanel() {
     }
   `
 
-  elements.acceptSuggestionButton.disabled = matchesCurrentSelection
+  elements.acceptSuggestionButton.disabled = false
   elements.dismissSuggestionButton.disabled = false
   renderDemoSavePanel()
 }
@@ -1768,8 +1788,7 @@ function renderDefects() {
       const photo = defect.photos[0]
       const visualEvidence = getDisplayVisualEvidence(
         defect.aiSuggestion?.visualEvidence,
-        getLocalizedTypeLabel(defect.aiSuggestion?.finalType, defect.aiSuggestion?.finalTypeLabel) ||
-          getLocalizedTypeLabel(defect.aiSuggestion?.suggestedType, defect.aiSuggestion?.suggestedTypeLabel) ||
+        getLocalizedTypeLabel(defect.aiSuggestion?.suggestedType, defect.aiSuggestion?.suggestedTypeLabel) ||
           meta.label
       )
       const regionCount = getVisualRegionCount(visualEvidence)
@@ -1782,13 +1801,12 @@ function renderDefects() {
             altText: meta.label,
             visualEvidence,
             overlayLabel:
-              getLocalizedTypeLabel(defect.aiSuggestion?.finalType, defect.aiSuggestion?.finalTypeLabel) ||
               getLocalizedTypeLabel(defect.aiSuggestion?.suggestedType, defect.aiSuggestion?.suggestedTypeLabel) ||
               meta.label,
             metaText: defect.aiSuggestion?.modelLabel || "",
             badgeText: defect.aiSuggestion
-              ? getSuggestionDecisionLabel(defect.aiSuggestion.status)
-              : "",
+              ? getSuggestionDecisionLabel(defect.aiSuggestion)
+              : getReviewLabel(null, state.locale),
             footerText:
               regionCount > 0
                 ? state.locale === "en"
@@ -1832,12 +1850,18 @@ function renderDefects() {
                   <p class="defect-item__location">${escapeHtml(defect.locationDescription || (state.locale === "en" ? "Area not specified" : "Участок не указан"))}</p>
                   ${
                     defect.aiSuggestion
-                      ? `<p class="inline-note">${escapeHtml(state.locale === "en" ? "AI suggested" : "AI предложил")}: ${escapeHtml(getLocalizedTypeLabel(defect.aiSuggestion.suggestedType, defect.aiSuggestion.suggestedTypeLabel))} (${escapeHtml(formatConfidence(defect.aiSuggestion.confidence))}). ${escapeHtml(state.locale === "en" ? "Final" : "Финально")}: ${escapeHtml(getLocalizedTypeLabel(defect.aiSuggestion.finalType, defect.aiSuggestion.finalTypeLabel))}. ${escapeHtml(state.locale === "en" ? "Model" : "Модель")}: ${escapeHtml(defect.aiSuggestion.modelLabel || defect.aiSuggestion.sourceLabel)}.</p>`
+                      ? `<p class="inline-note">${escapeHtml(state.locale === "en" ? "AI suggested" : "AI предложил")}: ${escapeHtml(getLocalizedTypeLabel(defect.aiSuggestion.suggestedType, defect.aiSuggestion.suggestedTypeLabel))}. ${escapeHtml(getModelScoreText(defect.aiSuggestion.confidence, state.locale))}. ${escapeHtml(getAnalysisLabel(defect.aiSuggestion, state.locale))}.</p>`
                       : ""
                   }
+                  <p class="review-indicator">${escapeHtml(getReviewLabel(defect.aiSuggestion, state.locale))}</p>
                   <p>${escapeHtml(defect.comment)}</p>
+                  ${defect.aiSuggestion?.suggestionId ? `
+                    <div class="action-row action-row--compact">
+                      <button class="button button--secondary" type="button" data-defect-action="accept-ai" data-defect-id="${defect.id}">${escapeHtml(t("defect.acceptSuggestion"))}</button>
+                      <button class="button button--plain" type="button" data-defect-action="manual-ai" data-defect-id="${defect.id}">${escapeHtml(t("defect.dismissSuggestion"))}</button>
+                    </div>` : ""}
                   <div class="action-row action-row--compact defect-item__actions">
-                    <button class="button" type="button" data-defect-action="reanalyse" data-defect-id="${defect.id}">${escapeHtml(state.locale === "en" ? "Reanalyze" : "Переанализировать")}</button>
+                    <button class="button" type="button" data-defect-action="reanalyse" data-defect-id="${defect.id}" ${getSelectedCvModel()?.configured ? "" : "disabled"}>${escapeHtml(state.locale === "en" ? "Reanalyze" : "Переанализировать")}</button>
                     <button class="button button--secondary" type="button" data-defect-action="edit" data-defect-id="${defect.id}">${escapeHtml(state.locale === "en" ? "Edit" : "Редактировать")}</button>
                     <button class="button button--danger" type="button" data-defect-action="delete" data-defect-id="${defect.id}">${escapeHtml(state.locale === "en" ? "Delete" : "Удалить")}</button>
                   </div>
@@ -1952,6 +1976,7 @@ function renderAll() {
 }
 
 async function requestSuggestionForImage(imageDataUrl) {
+  state.aiDecision = "pending_review"
   state.suggestionRequestId += 1
   const requestId = state.suggestionRequestId
   const activeModelKeys = state.cvModels
@@ -1964,6 +1989,13 @@ async function requestSuggestionForImage(imageDataUrl) {
   state.comparisonResults = []
   resetDemoSaveState()
   renderSuggestionPanel()
+
+  if (activeModelKeys.length === 0) {
+    state.suggestionStatus = "error"
+    state.suggestionError = "Live analysis is unavailable. Use a precomputed demo or manual entry."
+    renderSuggestionPanel()
+    return
+  }
 
   try {
     const { results } = await api("/api/ai/compare", {
@@ -2089,6 +2121,7 @@ async function applySelectedModel(modelKey) {
   )
 
   if (matchingSuggestion) {
+    state.aiDecision = "pending_review"
     state.pendingSuggestion = matchingSuggestion.suggestion
     renderSuggestionPanel()
     return
@@ -2117,12 +2150,6 @@ async function loadDemoScenarios() {
   }
 }
 
-function wait(ms) {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms)
-  })
-}
-
 async function imageUrlToDataUrl(imageUrl) {
   const response = await fetch(imageUrl)
 
@@ -2145,6 +2172,7 @@ async function applyDemoScenario(scenarioId) {
   state.suggestionRequestId += 1
   const requestId = state.suggestionRequestId
   state.activeDemoScenarioId = scenario.id
+  state.aiDecision = "pending_review"
   state.pendingImageDataUrl = scenario.imageUrl
   state.pendingSuggestion = null
   state.comparisonResults = []
@@ -2155,7 +2183,6 @@ async function applyDemoScenario(scenarioId) {
   renderAll()
 
   const imageDataUrl = await imageUrlToDataUrl(scenario.imageUrl)
-  await wait(420)
 
   if (requestId !== state.suggestionRequestId) {
     return
@@ -2163,7 +2190,11 @@ async function applyDemoScenario(scenarioId) {
 
   const suggestion = {
     ...scenario.suggestion,
-    status: "pending_review"
+    suggestionId: crypto.randomUUID(),
+    analysisMode: "precomputed_demo",
+    demoScenarioId: scenario.id,
+    status: "pending_review",
+    review: { version: 1, decision: "pending_review", reviewedAt: null }
   }
 
   state.pendingImageDataUrl = imageDataUrl
@@ -2195,8 +2226,8 @@ async function applyDemoScenario(scenarioId) {
   renderAll()
   showStatus(
     state.locale === "en"
-      ? "Demo photo processed with the saved Grounded SAM 2 mask."
-      : "Демо-фото обработано сохранённой маской Grounded SAM 2."
+      ? "Precomputed demo mask loaded. No live inference was run."
+      : "Сохранённая демо-маска загружена. Новый анализ не запускался."
   )
 }
 
@@ -2222,6 +2253,7 @@ async function saveCurrentDemoScenario() {
         title,
         imageDataUrl: state.pendingImageDataUrl,
         suggestion: state.pendingSuggestion,
+        aiDecision: state.aiDecision,
         finalType,
         locationDescription: elements.defectLocationInput?.value || "",
         comment: elements.commentInput?.value || "",
@@ -2525,6 +2557,12 @@ elements.reportModelSelect.addEventListener("change", async (event) => {
 })
 
 elements.defectTypeSelect.addEventListener("change", () => {
+  if (state.pendingSuggestion) {
+    state.aiDecision = transitionReviewDecision(
+      state.aiDecision, "type_changed", state.pendingSuggestion.suggestedType,
+      elements.defectTypeSelect.value
+    )
+  }
   delete elements.commentInput.dataset.demoScenarioId
   updateDefectHints()
 })
@@ -2539,6 +2577,7 @@ elements.acceptSuggestionButton.addEventListener("click", () => {
   }
 
   elements.defectTypeSelect.value = state.pendingSuggestion.suggestedType
+  state.aiDecision = "accepted"
   updateDefectHints()
   showStatus(
     state.locale === "en"
@@ -2548,6 +2587,8 @@ elements.acceptSuggestionButton.addEventListener("click", () => {
 })
 
 elements.dismissSuggestionButton.addEventListener("click", () => {
+  state.aiDecision = state.pendingSuggestion ? "manual" : "pending_review"
+  renderSuggestionPanel()
   elements.defectTypeSelect.focus()
   showStatus(state.locale === "en" ? "Manual selection kept." : "Оставлен ручной выбор.")
 })
@@ -2581,6 +2622,11 @@ elements.defectForm.addEventListener("submit", async (event) => {
   event.preventDefault()
   clearStatus()
 
+  if (state.suggestionStatus === "loading") {
+    showStatus(state.locale === "en" ? "Wait for the current image to finish loading." : "Дождитесь загрузки текущего изображения.", "error")
+    return
+  }
+
   if (!state.currentSessionId) {
     showStatus(state.locale === "en" ? "Open a session first." : "Сначала откройте сессию.", "error")
     return
@@ -2603,7 +2649,8 @@ elements.defectForm.addEventListener("submit", async (event) => {
         comment: formData.get("comment"),
         imageDataUrl: state.pendingImageDataUrl,
         aiSuggestion:
-          state.suggestionStatus === "ready" ? state.pendingSuggestion : null
+          state.suggestionStatus === "ready" ? state.pendingSuggestion : null,
+        aiDecision: state.aiDecision
       })
     })
 
@@ -2673,6 +2720,27 @@ elements.defectList.addEventListener("click", async (event) => {
   if (defectAction === "cancel-edit") {
     state.editingDefectId = ""
     renderDefects()
+    return
+  }
+
+  if (defectAction === "accept-ai" || defectAction === "manual-ai") {
+    const defect = state.currentSessionBundle?.defects.find((item) => item.id === defectId)
+    if (!defect?.aiSuggestion) return
+    try {
+      await api(`/api/defects/${encodeURIComponent(defectId)}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          defectType: defectAction === "accept-ai" ? defect.aiSuggestion.suggestedType : defect.defectType,
+          comment: defect.comment,
+          locationDescription: defect.locationDescription,
+          aiDecision: defectAction === "accept-ai" ? "accepted" : "manual",
+          reviewSuggestionId: defect.aiSuggestion.suggestionId
+        })
+      })
+      await refreshSessionBundle()
+    } catch (error) {
+      showStatus(error.message, "error")
+    }
     return
   }
 
