@@ -1,115 +1,122 @@
+[English](README.md) | [Русский](README.ru.md)
+
 # ConstructAI Inspector
 
-`MVP0 + V2` цифрового стройконтроля: мобильный web-интерфейс для запуска инспекционной сессии, фиксации дефектов с фото, AI-подсказки по типу дефекта и генерации акта на основе сохранённых данных. Для трещин приложение поддерживает сравнение нескольких CV-моделей; самый визуальный контур сейчас строится в pipeline `DeepCrack/Grounding DINO seed -> SAM 2 refine`.
+ConstructAI Inspector is a mobile-first construction inspection software prototype (`MVP0 + V2`) for documenting defects, reviewing AI suggestions, and generating reports from saved inspection data.
 
-## Honest public demo
+**Public demo:** [constructai-inspector.vercel.app](https://constructai-inspector.vercel.app/)
 
-Публичная web-демонстрация не маскируется под production inference-service.
+Core capabilities include project and inspection session setup, photo-based defect records, human review of suggested defect types, comparison of CV models, crack-mask visualization, and HTML inspection reports. The crack-mask pipeline uses `DeepCrack/Grounding DINO seed -> SAM 2 refine`.
 
-- `Demo Mode` использует **предрассчитанные результаты реального CV-pipeline** на заранее подобранных изображениях трещин.
-- эти маски были получены локально через настоящий inference pipeline и затем сохранены для стабильного публичного показа
-- загрузка **своих** фотографий с реальным анализом доступна только в **локальном full mode**, когда запущен CV-service и подключены веса
+The prototype supports documentation and human review; it does not provide a validated structural safety assessment.
 
-Это сделано сознательно: публичная demo-версия показывает UX, логику документов и визуальную подачу CV, но не выдаётся за открытый online inference для любых пользовательских фото.
+## Honest Public Demo
 
-Публичная версия: [constructai-inspector.vercel.app](https://constructai-inspector.vercel.app)
+The public web demo is not presented as a production inference service.
 
-## Quick start
+- `Demo Mode` uses **precomputed results from a real CV pipeline** on curated crack images.
+- These masks were generated locally through actual inference and then saved for reproducible public display.
+- Real analysis of **your own** photos is available only in **full local mode**, with the CV service running and the necessary model weights available.
 
-Требование: Node.js `24.x`.
+This distinction is intentional: the public demo shows the user experience, document workflow, and CV visualization. It is not an open online inference service for arbitrary uploaded photos.
 
-Самый простой путь для нового пользователя после `git clone`:
+Public application: [constructai-inspector.vercel.app](https://constructai-inspector.vercel.app)
+
+## Quick Start
+
+Requirement: Node.js `24.x`.
+
+The simplest way to get started after `git clone`:
 
 ```bash
 npm run quickstart
 ```
 
-Что делает эта команда:
+This command:
 
-- устанавливает Node dependencies
-- подготавливает локальные директории runtime
-- запускает web-приложение в **demo mode**
+- Installs Node dependencies.
+- Prepares local runtime directories.
+- Starts the web application in **demo mode**.
 
-После запуска откройте:
+After startup, open:
 
 - [http://127.0.0.1:3000](http://127.0.0.1:3000)
 
-Если нужен максимально быстрый просмотр без CV-моделей, этого достаточно.
+This is sufficient for a quick walkthrough without CV models.
 
-## Quick start: full local mode
+## Quick Start: Full Local Mode
 
-Если пользователь хочет воспроизвести именно локальный inference на своих фото:
+To reproduce local inference on your own photos:
 
-1. положить checkpoint `DeepCrack` в:
+1. Place the `DeepCrack` checkpoint at:
 
 ```text
 services/cv_inference/models/deepcrack_ct260.pth
 ```
 
-2. выполнить:
+2. Run:
 
 ```bash
 npm run quickstart:full
 ```
 
-Эта команда:
+This command:
 
-- ставит Node dependencies
-- создаёт `.venv-cv`
-- ставит Python dependencies для CV-service
-- запускает web UI
-- запускает локальный inference-service на `127.0.0.1:8001`
+- Installs Node dependencies.
+- Creates `.venv-cv`.
+- Installs Python dependencies for the CV service.
+- Starts the web UI.
+- Starts the local inference service at `127.0.0.1:8001`.
 
-Если checkpoint отсутствует, full mode честно не поднимет inference и останется в demo-парадигме.
+If the checkpoint is missing, full local mode does not start inference; the application remains in demo mode.
 
-## Что реализовано
+## Implemented Features
 
-- создание проекта
-- запуск инспекционной сессии
-- фиксация дефекта с фотографией
-- структурированная подсказка формулировки по типу дефекта
-- `V2`: AI-подсказка типа дефекта с обязательным подтверждением человеком
-- визуальная подсветка дефекта поверх фото и внутри акта
-- `Grounded SAM 2`: уточнение mask-overlay внутри seed-зон от `DeepCrack` или `Grounding DINO`
-- `Demo Mode`: заранее подготовленные фото и сохранённые SAM 2 маски для публичного показа без локального Python inference
-- генерация HTML-акта из сохранённого snapshot сессии
-- два режима хранения:
-  - локальный filesystem для разработки
-  - `Postgres`-режим для Vercel/serverless-деплоя
-- fallback-хранение изображений и HTML-актов внутри `Postgres`, если `Vercel Blob` не настроен
+- Project creation.
+- Inspection session setup.
+- Photo-based defect recording.
+- Structured wording suggestions by defect type.
+- `V2`: AI suggestions for defect types, requiring explicit human review.
+- Defect overlays on photos and in reports.
+- `Grounded SAM 2`: mask-overlay refinement within seed regions from `DeepCrack` or `Grounding DINO`.
+- `Demo Mode`: curated photos and saved SAM 2 masks for public display without local Python inference.
+- HTML report generation from a saved session snapshot.
+- Local filesystem storage for development.
+- `Postgres` storage for Vercel/serverless deployment.
+- Fallback storage of images and HTML reports in `Postgres` when `Vercel Blob` is not configured.
 
-## Локальный запуск вручную
+## Manual Local Startup
 
 ```bash
 npm start
 ```
 
-После запуска откройте [http://localhost:3000](http://localhost:3000).
+After startup, open [http://localhost:3000](http://localhost:3000).
 
-По умолчанию без env-переменных используется локальное хранение:
+Without environment variables, the application uses local storage by default:
 
-- `data/store.json` содержит проекты, сессии, дефекты и акты
-- `data/uploads/` хранит изображения дефектов
-- `data/reports/` хранит сгенерированные HTML-акты
+- `data/store.json` contains projects, sessions, defects, and reports.
+- `data/uploads/` stores defect images.
+- `data/reports/` stores generated HTML reports.
 
-Для одновременного запуска web UI:
+To start the web UI in development mode:
 
 ```bash
 npm run dev
 ```
 
-Это поднимает только web UI и ориентировано на demo mode.
+This starts only the web UI and is intended for demo mode.
 
-## Локальный запуск CV-service вручную
+## Manual CV Service Startup
 
-Для реальной геометрии трещины и сравнения с zero-shot detector нужен отдельный Python inference-service:
+Actual crack geometry and comparison with a zero-shot detector require a separate Python inference service:
 
 ```bash
 python3.11 -m venv .venv-cv
 .venv-cv/bin/pip install -r services/cv_inference/requirements.txt
 ```
 
-Checkpoint `DeepCrack` не хранится в git. Для локального запуска положите файл весов сюда:
+The `DeepCrack` checkpoint is not stored in git. For local inference, place the weights file at:
 
 ```text
 services/cv_inference/models/deepcrack_ct260.pth
@@ -119,14 +126,14 @@ services/cv_inference/models/deepcrack_ct260.pth
 npm run cv:start
 ```
 
-По умолчанию web-приложение будет обращаться к `http://127.0.0.1:8001`. В текущей конфигурации этот сервис умеет:
+By default, the web application connects to `http://127.0.0.1:8001`. The service currently supports:
 
 - `DeepCrack`
 - `Grounding DINO`
 - `Grounded SAM 2`
 - `Florence-2`
 
-Опциональные переменные:
+Optional environment variables:
 
 ```bash
 CV_INFERENCE_MODE=external
@@ -135,77 +142,72 @@ CV_MODEL_DEFAULT=grounded-sam2
 FLORENCE2_MODEL_ID=florence-community/Florence-2-base-ft
 ```
 
-Режимы AI:
+AI modes:
 
-- `external` — использовать реальный inference-service
-- `mock` — использовать встроенный mock-адаптер для разработки и тестов
-- `auto` — пробовать реальный сервис и падать обратно в mock только если он недоступен
+- `external`: use the real inference service.
+- `mock`: use the built-in mock adapter for development and tests.
+- `auto`: try the real service and fall back to mock only if it is unavailable. Mock output is not real model inference.
 
-## Выбор моделей
+## Model Selection
 
-В интерфейсе теперь есть явный селектор AI-модели:
+The UI provides an explicit AI model selector:
 
-- `DeepCrack` — реальная crack-segmentation модель
-- `Grounding DINO` — реальный zero-shot detector с более жёсткой фильтрацией и дедупликацией box-ов
-- `Grounded SAM 2` — pipeline `seed -> SAM 2`, который сначала использует зоны `DeepCrack`, а если их нет, откатывается на `Grounding DINO`
-- `Florence-2` — реальная foundation-модель, подключённая в тот же inference-service
-- `Universal CV Adapter` — унифицированный контракт под любую внешнюю предобученную модель
+- `DeepCrack`: a crack-segmentation model.
+- `Grounding DINO`: a zero-shot detector with stricter filtering and bounding-box deduplication.
+- `Grounded SAM 2`: a `seed -> SAM 2` pipeline that first uses `DeepCrack` regions and falls back to `Grounding DINO` if no seed regions are found.
+- `Florence-2`: a foundation model connected to the same inference service.
+- `Universal CV Adapter`: a unified integration contract for external pretrained models.
 
-После загрузки одного фото приложение сравнивает все подключённые модели на одном и том же изображении. Для новых фото и для `Переанализировать` у сохранённого дефекта используется выбранная основная модель.
+After a photo is uploaded, the application compares all configured models on the same image. The selected primary model is used for new photos and for the `Reanalyze` action on a saved defect.
 
-## Воспроизводимый CV benchmark
+## Reproducible CV Benchmark
 
-В репозитории зафиксирован benchmark `benchmarks/cv/manifest.json` с тремя уникальными
-фотографиями и сохранёнными mask-reference. Сначала проверьте его контракт:
+The repository includes `benchmarks/cv/manifest.json`, a benchmark manifest with three unique photos and saved reference masks. Validate its contract first:
 
 ```bash
 npm run benchmark:cv:validate
 ```
 
-Для реального прогона запустите CV-service и в другом терминале выполните:
+For a live run, start the CV service and execute the following in another terminal:
 
 ```bash
 npm run benchmark:cv
 ```
 
-Команда считает `Dice`, `IoU`, precision, recall и точность типа дефекта для каждой
-модели. Строгий режим возвращает ненулевой exit code при нарушении quality gate:
+The command calculates `Dice`, `IoU`, precision, recall, and defect-type accuracy for each model. Strict mode returns a nonzero exit code if the quality gate is not met:
 
 ```bash
 npm run benchmark:cv:enforce
 ```
 
-Текущие reference-маски являются одобренными результатами прежнего Grounded SAM 2
-inference. Они позволяют обнаруживать регрессии, но **не являются независимой ручной
-разметкой и не доказывают точность модели**. Для сравнительных заявлений о точности
-нужен отдельный набор human-annotated масок.
+The current reference masks are approved outputs from earlier Grounded SAM 2 inference runs. They support regression detection, but **are not independent human annotations and do not establish model accuracy**. Comparative accuracy claims require a separate set of human-annotated masks.
 
 ## Demo Mode
 
-Для публичного MVP в интерфейсе есть блок `Demo Mode`. Он использует статические файлы из `public/demo/`:
+The public MVP includes a `Demo Mode` section backed by static files in `public/demo/`:
 
-- `public/demo/images/` — заранее подобранные фото трещин
-- `public/demo/scenarios.json` — сохранённый результат `Grounded SAM 2`, включая `visualEvidence.maskDataUrl`
+- `public/demo/images/`: curated crack photos.
+- `public/demo/scenarios.json`: saved `Grounded SAM 2` results, including `visualEvidence.maskDataUrl`.
 
-Такой сценарий работает на Vercel без локального Python-сервиса: пользователь выбирает демо-фото, нажимает `Проверить демо`, и приложение сразу показывает подготовленную маску. Свои фото по-прежнему можно загружать локально, но для реального анализа нужен запущенный CV-service.
+This workflow runs on Vercel without a local Python service: select a demo photo and click `Run demo` to display the saved mask. This displays a precomputed result; it does not run new inference. You can still upload your own photos locally, but real analysis requires a running CV service.
 
-Добавление и удаление demo-кейсов доступно только в локальном writable-режиме. На Vercel demo-библиотека автоматически работает только на чтение: публичный пользователь может запускать примеры, но не менять содержимое `public/demo/`.
+Demo cases can be added or deleted only in local writable mode. On Vercel, the demo library is automatically read-only: public users can run examples but cannot modify `public/demo/`.
 
-Workflow публикации нового удачного примера:
+To publish a new example after reviewing its analysis:
 
-1. запустить локальный full mode и проанализировать фотографию
-2. нажать `Отправить в демо` / `Add to demo`
-3. проверить изменения в `public/demo/scenarios.json` и `public/demo/images/`
-4. выполнить `npm run verify`, commit и production redeploy
+1. Start full local mode and analyze a photo.
+2. Click `Add to demo`.
+3. Review the changes in `public/demo/scenarios.json` and `public/demo/images/`.
+4. Run `npm run verify`, commit the changes, and redeploy production.
 
-Публичный набор обновляется только вместе с новой версией кода. Это сохраняет воспроизводимость и не позволяет посетителям менять curated demo-набор.
+The public collection is updated only with a new code revision. This preserves reproducibility and prevents visitors from changing the curated demo set.
 
-Именно это разделение важно с точки зрения честной публикации:
+The distinction is essential for transparent publication:
 
-- публичный режим = предрассчитанная demo на curated examples
-- локальный full mode = реальный inference на пользовательских фото
+- Public mode: precomputed demo results on curated examples.
+- Full local mode: real inference on user-supplied photos.
 
-По умолчанию `DeepCrack`, `Grounding DINO`, `Grounded SAM 2` и `Florence-2` могут работать через один локальный endpoint `http://127.0.0.1:8001`. Если нужно развести модели по разным сервисам, задайте отдельные endpoint'ы:
+By default, `DeepCrack`, `Grounding DINO`, `Grounded SAM 2`, and `Florence-2` can use the same local endpoint, `http://127.0.0.1:8001`. To run models through separate services, configure individual endpoints:
 
 ```bash
 DEEPCRACK_INFERENCE_URL=http://127.0.0.1:8001
@@ -215,108 +217,102 @@ FLORENCE2_INFERENCE_URL=http://127.0.0.1:8001
 GENERAL_CV_INFERENCE_URL=http://127.0.0.1:8004
 ```
 
-Для `Grounding DINO` дополнительно доступны жёсткие пороги post-processing через env, например `GROUNDING_DINO_MIN_CONFIDENCE` и `GROUNDING_DINO_MAX_BOXES_PER_TYPE`. Для `Grounded SAM 2` можно менять `SAM2_MODEL_ID`, `GROUNDED_SAM2_MAX_BOXES` и другие `SAM2_*` переменные.
+`Grounding DINO` also exposes stricter post-processing thresholds through environment variables such as `GROUNDING_DINO_MIN_CONFIDENCE` and `GROUNDING_DINO_MAX_BOXES_PER_TYPE`. For `Grounded SAM 2`, you can configure `SAM2_MODEL_ID`, `GROUNDED_SAM2_MAX_BOXES`, and other `SAM2_*` variables.
 
-## Проверка
+## Verification
 
-Решение человека хранится отдельно от совпадения типа с AI-подсказкой.
-`Keep manual` сохраняет ручной выбор; `Accept type` явно принимает предложенный
-тип. Любой новый анализ снова требует решения. Старые неоднозначные записи
-помечаются как `Review not recorded (legacy)` без изменения исходных данных.
+The human review decision is stored separately from whether the chosen type matches the AI suggestion. `Keep manual` records a manual selection; `Accept type` explicitly accepts the suggested type. These are different operator decisions **even when the selected defect type matches the AI suggestion**. Every new analysis requires a new decision. Ambiguous older records are labeled `Review not recorded (legacy)` without modifying the original data.
 
-Публичное демо и акты обозначают предрассчитанные результаты. `Model score`
-является исходной оценкой модели, а не независимо подтверждённой точностью
-или калиброванной вероятностью. Mock-адаптер предназначен только для тестов.
+The public demo and reports identify precomputed results. `Model score` is the model's raw score, not independently validated accuracy or a calibrated probability. The mock adapter is intended for testing, not as a substitute for real inference.
 
 ```bash
 npm test
 ```
 
-Тесты принудительно запускаются в `mock`-режиме, чтобы не зависеть от Python-сервиса.
+Tests explicitly use `mock` mode so they do not depend on the Python service.
 
-Полный verify baseline:
+Full verification baseline:
 
 ```bash
 npm run verify
 ```
 
-Он последовательно выполняет `lint`, `typecheck`, `test`, `build`, `hygiene` и `audit`.
+This runs `lint`, `typecheck`, `test`, `build`, `hygiene`, and `audit` in sequence.
 
-Проверка с отдельным локальным PostgreSQL описана в `docs/testing.md`.
-Для воспроизводимой демонстрации без доступа к пользовательским данным:
+Testing with a separate local PostgreSQL instance is described in `docs/testing.md`.
+For a reproducible demonstration without accessing user data:
 
 ```bash
 npm run evidence:serve
 ```
 
-Команда создаёт новое изолированное хранилище в `logs/evidence-*/runtime`,
-отключает live inference и запускает приложение на `http://127.0.0.1:3100`.
-Сценарий съёмки и manifest: [docs/evidence-capture.md](docs/evidence-capture.md).
+This command creates a new isolated store in `logs/evidence-*/runtime`, disables live inference, and starts the application at `http://127.0.0.1:3100`.
+Capture workflow and manifest instructions: [docs/evidence-capture.md](docs/evidence-capture.md).
 
-Отдельный технический аудит:
+Standalone technical audit:
 
 ```bash
 npm run audit
 ```
 
-Он проверяет достижимость модулей, DOM/i18n-контракты, demo-ассеты, связи локальных сущностей и доступность media/report-файлов. Осиротевшие runtime-файлы выводятся как предупреждения и никогда не удаляются автоматически.
+This checks module reachability, DOM/i18n contracts, demo assets, local entity relationships, and availability of media/report files. Orphaned runtime files are reported as warnings and are never deleted automatically.
 
-Дополнительная проверка гигиены репозитория:
+Additional repository hygiene check:
 
 ```bash
 npm run hygiene
 ```
 
-Она проверяет, что в рабочей зоне исходников нет `.DS_Store` и Python cache-файлов. Runtime-данные в `data/`, `.venv-cv/`, `node_modules/` и веса моделей считаются локальными артефактами и не должны попадать в git.
+This checks that source directories contain no `.DS_Store` or Python cache files. Runtime data in `data/`, `.venv-cv/`, `node_modules/`, and model weights are local artifacts and must not be committed to git.
 
-## Режим для Vercel
+## Vercel Deployment
 
-Текущий production: [https://constructai-inspector.vercel.app](https://constructai-inspector.vercel.app).
+Public application: [https://constructai-inspector.vercel.app](https://constructai-inspector.vercel.app).
 
-Приложение больше не завязано на постоянно включённый ноутбук. Текущий деплой использует:
+The hosted application does not require a laptop to remain online. The deployment described here uses:
 
-1. Vercel Functions и статику из `public/`
-2. бесплатный Neon Postgres для проектов, сессий, дефектов и актов
-3. checked-in read-only demo-сценарии без online CV inference
+1. Vercel Functions and static assets from `public/`.
+2. Neon Postgres on the prototype's free-tier setup for projects, sessions, defects, and reports.
+3. Checked-in, read-only demo scenarios without online CV inference.
 
-Минимальная конфигурация:
+Minimal configuration:
 
 ```bash
 STORAGE_BACKEND=postgres
 DATABASE_URL=postgres://USER:PASSWORD@HOST:5432/DATABASE
 ```
 
-Опционально можно добавить:
+Optional:
 
 ```bash
 BLOB_READ_WRITE_TOKEN=vercel_blob_rw_xxx
 ```
 
-Если `BLOB_READ_WRITE_TOKEN` не задан, изображения и HTML-акты будут храниться в `Postgres` и отдаваться через `/api/media/:id` и `/api/reports/:id/document`. Это медленнее, но подходит для бесплатного предварительного этапа.
+If `BLOB_READ_WRITE_TOKEN` is not set, images and HTML reports are stored in `Postgres` and served through `/api/media/:id` and `/api/reports/:id/document`. This fallback is slower but supports the prototype's preliminary no-cost setup.
 
-### Что нужно сделать в Vercel
+### Vercel Setup
 
-1. Импортировать репозиторий в `Vercel`
-2. Добавить `DATABASE_URL` в Environment Variables
-3. При желании подключить `Vercel Blob` и добавить `BLOB_READ_WRITE_TOKEN`
-4. Задеплоить проект
+1. Import the repository into `Vercel`.
+2. Add `DATABASE_URL` to Environment Variables.
+3. Optionally connect `Vercel Blob` and add `BLOB_READ_WRITE_TOKEN`.
+4. Deploy the project.
 
-Статика из `public/` будет раздаваться Vercel напрямую, а API будет работать через `api/index.js` и `vercel.json`.
+Vercel serves static files from `public/` directly. The API runs through `api/index.js` and `vercel.json`.
 
-`.vercelignore` обязательно исключает локальные `.env`, `.venv-cv`, веса моделей и `data/`. `npm run build` проверяет этот барьер, чтобы пользовательские фото и многогигабайтное ML-окружение не попали в deployment bundle.
+`.vercelignore` excludes local `.env` files, `.venv-cv`, model weights, and `data/`. `npm run build` checks this boundary to keep user photos and the multi-gigabyte ML environment out of the deployment bundle.
 
-## Архитектурные решения
+## Architectural Decisions
 
-- `MVP0` не зависит от `AI` и полностью закрывает детерминированный workflow
-- `V2 skeleton` добавляет отдельный inference-слой и не делает AI источником истины
-- реальная пиксельная маска хранится как часть `visualEvidence` и воспроизводится в UI и в акте
-- отчёт формируется только из уже сохранённых данных, а не из временного состояния UI
-- у дефекта сохраняется AI-предложение вместе с признаком, было ли оно принято или исправлено оператором
-- backend теперь отделён от локального сервера: одна и та же API-логика работает и в `npm start`, и в `Vercel Function`
+- `MVP0` does not depend on `AI` and supports the complete deterministic workflow.
+- The `V2 skeleton` adds a separate inference layer without making AI the source of truth.
+- The actual pixel mask is stored as part of `visualEvidence` and reproduced in the UI and reports.
+- Reports are generated only from saved data, not temporary UI state.
+- A defect stores its AI suggestion together with the operator's review decision, including acceptance, correction, or keeping the manual selection.
+- The backend is separate from the local server: the same API logic runs under both `npm start` and `Vercel Function`.
 
-## Репозиторная гигиена
+## Repository Hygiene
 
-Не коммитить:
+Do not commit:
 
 - `.venv-cv/`
 - `node_modules/`
@@ -326,4 +322,4 @@ BLOB_READ_WRITE_TOKEN=vercel_blob_rw_xxx
 - `data/reports/`
 - `.env`
 
-Эти файлы являются локальным runtime-состоянием или потенциально содержат пользовательские данные. Перед публикацией на GitHub держите в репозитории только исходники, документацию, конфигурацию и `services/cv_inference/requirements.txt`.
+These files are local runtime state or may contain user data. Before publishing to GitHub, keep only source code, documentation, configuration, and `services/cv_inference/requirements.txt` in the repository.
