@@ -13,6 +13,9 @@
 - The Gradio builder mounts only the root requirements file under `/tmp` before
   copying app source. Nested `-r services/...` includes fail there. Keep the Space
   requirements self-contained; a regression test checks parity with CV pins.
+- The builder injects Gradio's `mcp,oauth` extras even when the app does not enable
+  those features. Gradio 6.30.0's MCP extra requires Pydantic <=2.12.5. Keep the
+  explicitly documented Space-only pin; do not downgrade the local CV environment.
 
 ## Known Fragile Zones
 

@@ -57,9 +57,12 @@ private data or credentials. Keep third-party model attribution/provenance.
 
 - Python 3.12.12, Gradio 6.30.0, spaces 0.51.3.
 - The CV dependencies remain pinned in `services/cv_inference/requirements.txt`.
-- The Space requirements repeat those exact pins without nested `-r` includes:
+- The Space requirements repeat the CV pins without nested `-r` includes:
   the Gradio image builder mounts only the root requirements file under `/tmp`.
   A deterministic test checks dependency parity.
+- Space-only exception: `pydantic==2.12.5` because Hugging Face automatically
+  installs `gradio[mcp,oauth]`, whose MCP extra caps Pydantic at 2.12.5.
+  The local CV runtime keeps its original Pydantic pin; no environment is downgraded.
 - SAM 2 and Grounding DINO revisions are pinned in `models.json`.
 - ZeroGPU imports `spaces` before allocating emulated CUDA tensors.
 - Model weights are loaded at startup, outside the decorated GPU function.
