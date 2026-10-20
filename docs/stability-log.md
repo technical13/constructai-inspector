@@ -11,7 +11,7 @@
 - Risk surface score: `4`
 - Invariant confidence: `5`
 - Test confidence: `4`
-- Verification: 56 Node tests passed, one isolated Postgres test skipped because
+- Verification: 57 Node tests passed, one isolated Postgres test skipped because
   TEST_DATABASE_URL was not configured; 13 Python contracts passed. Lint,
   module contracts, build, hygiene and audit passed. Local real browser upload
   returned a live SAM 2 mask, raw score 0.420 and pending human review. EN/RU,
@@ -24,6 +24,8 @@
   recorded separately with the final deployment/source identifiers; deterministic
   tests do not establish independent model accuracy. Existing three orphan local
   uploads were not deleted. Production Postgres is not read or migrated.
+- Preview audit caught static-index precedence on the deployed root. Replaced
+  its rewrite with an explicit `/try` redirect and added a regression contract.
 
 ## 2026-10-20: ZeroGPU Preparation
 

@@ -2,6 +2,9 @@
 
 ## Public Preview Boundary (2026-10-20)
 
+- Vercel's static `index.html` wins over a root rewrite in this Other-framework
+  deployment. Use an explicit root redirect to `/try`, not just a rewrite, and
+  verify the deployed root rather than relying on local routing tests.
 - Vercel must deny workspace API reads as well as writes, even if an environment
   variable tries to disable public mode. Never call bootstrap/store/schema setup
   as a health check in public mode.

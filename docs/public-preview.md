@@ -6,7 +6,9 @@ not rewritten. No production database migration is necessary.
 
 ## User Experience
 
-- Vercel serves `public/try.html` at `/` and `/try`; English is the default, with
+- Vercel redirects `/` and `/index.html` to `/try`, which serves `public/try.html`.
+  An ordinary root rewrite loses to Vercel's static index-file handling.
+  English is the default, with
   a persistent RU/EN language preference. Photos/results stay in page memory.
 - **Try your photo** resizes locally, requires explicit sharing consent, and
   submits exactly one live DeepCrack + SAM 2 analysis via the server.

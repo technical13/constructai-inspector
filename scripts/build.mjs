@@ -45,7 +45,8 @@ if (!vercel.rewrites && !vercel.routes) {
 
 const previewHtml = await readFile(new URL("../public/try.html", import.meta.url), "utf8")
 if (!previewHtml.includes('src="/preview.js"') || !previewHtml.includes('href="/preview.css"') ||
-    !vercel.rewrites?.some(rule => rule.source === "/" && rule.destination === "/try.html")) {
+    !vercel.redirects?.some(rule => rule.source === "/" && rule.destination === "/try") ||
+    !vercel.rewrites?.some(rule => rule.source === "/try" && rule.destination === "/try.html")) {
   throw new Error("build: public preview entry point or deployment route is missing")
 }
 

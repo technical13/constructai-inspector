@@ -226,3 +226,10 @@ test("public browser entry never calls workspace APIs, inserts HTML, or sends an
   assert.equal(new Set(ids).size, ids.length)
   for (const [, id] of source.matchAll(/\$\("([^"]+)"\)/g)) assert.ok(ids.includes(id), `Missing ${id}`)
 })
+
+test("Vercel root redirects before the legacy static index can be served", async () => {
+  const config = JSON.parse(await fs.readFile(new URL("../vercel.json", import.meta.url), "utf8"))
+  assert.ok(config.redirects.some(rule => rule.source === "/" && rule.destination === "/try" && rule.permanent === false))
+  assert.ok(config.redirects.some(rule => rule.source === "/index.html" && rule.destination === "/try"))
+  assert.ok(config.rewrites.some(rule => rule.source === "/try" && rule.destination === "/try.html"))
+})
