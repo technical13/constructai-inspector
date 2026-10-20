@@ -40,6 +40,10 @@
 - historical report media access after live defect deletion
 - local demo write capability versus read-only public deployment
 - bounded inference FIFO, queue overflow, and timeout behavior
+- Gradio job submission, SSE completion/error/EOF, job-ID validation, quota failure,
+  and shared deadlines (`test/huggingface-inference.test.js`)
+- CUDA/MPS/CPU device selection and bounded cloud payload contracts
+  (`services/cv_inference/tests/test_cloud_contract.py`)
 - Python model registry readiness and saturation behavior
 - segmentation metric determinism and benchmark provenance
 
@@ -63,6 +67,10 @@ The identical suite runs against optional local Postgres when
 `TEST_DATABASE_URL` points to a localhost database named `constructai_test_*`.
 Production hosts are rejected before any SQL is executed. No mandatory new
 infrastructure dependency was added.
+
+ZeroGPU startup and real uploaded-photo checks are separate, environment-dependent
+checks described in `docs/huggingface.md`. Passing deterministic tests alone does
+not establish that the cloud Space is running or that model accuracy is validated.
 
 Example with a disposable local PostgreSQL instance:
 

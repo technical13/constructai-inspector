@@ -123,6 +123,16 @@ export function getCvInferenceTimeoutMs() {
   return readBoundedInteger("CV_INFERENCE_TIMEOUT_MS", 120_000, 1_000, 600_000)
 }
 
+export function getCvInferenceTransport() {
+  return readNonEmptyEnv("CV_INFERENCE_TRANSPORT").toLowerCase() === "gradio"
+    ? "gradio"
+    : "rest"
+}
+
+export function getCvInferenceToken() {
+  return readNonEmptyEnv("CV_INFERENCE_TOKEN")
+}
+
 export function getCvInferenceMaxConcurrency() {
   return readBoundedInteger("CV_INFERENCE_MAX_CONCURRENCY", 1, 1, 8)
 }

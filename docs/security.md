@@ -33,3 +33,7 @@ This repository is an MVP for inspection workflow and does not yet implement aut
 - do not log raw image payloads
 - do not add hidden external inference dependencies
 - prefer explicit config to implicit cloud calls
+- ZeroGPU upload packages use an explicit file allowlist; never upload the working
+  directory, local environment, project storage, evidence archives, or credentials
+- cloud API tokens stay server-side; all requests share the token owner's quota
+- public Gradio uploads/results can be temporarily cached; use non-sensitive photos

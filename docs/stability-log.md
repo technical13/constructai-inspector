@@ -1,5 +1,24 @@
 # Stability Log
 
+## 2026-10-20: ZeroGPU Preparation
+
+- Change summary: Added an isolated Gradio Space package, CUDA portability,
+  checkpoint/model pins, input limits, and opt-in queued Gradio transport.
+- Risk classification: `HIGH`
+- Stability score: `4`
+- Risk surface score: `4`
+- Invariant confidence: `5`
+- Test confidence: `4`
+- Verification: Deterministic verify passed; packaged Gradio UI built with
+  Gradio 6.30.0; real local DeepCrack inference through the queued API returned
+  a mask and `pending_review`. Final cloud startup/inference is a separate check.
+- Performance notes: One active GPU job; four waiting jobs; 120-second GPU
+  duration; 1600-pixel maximum inference side; 32 MiB SSE response cap and
+  incremental parsing without rescanning accumulated mask data.
+- Remaining risk surface: Cloud GPU execution not established by local tests;
+  free quotas/queues, model false positives/negatives, optional Postgres test
+  skipped without local test DB; three pre-existing orphan uploads left untouched.
+
 ## Entry Template
 
 - Date:

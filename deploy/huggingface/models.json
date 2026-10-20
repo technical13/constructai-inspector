@@ -1,0 +1,14 @@
+{
+  "deepcrack": {
+    "file": "services/cv_inference/models/deepcrack_ct260.pth",
+    "sha256": "945239375c2b3de45abccc2dbdc374e3259b55d16298b298fb9e0cd13be5ad63"
+  },
+  "sam2": {
+    "id": "facebook/sam2.1-hiera-tiny",
+    "revision": "de431c4043854a71d8101e17995dfe596bf101a5"
+  },
+  "groundingDino": {
+    "id": "IDEA-Research/grounding-dino-base",
+    "revision": "12bdfa3120f3e7ec7b434d90674b3396eccf88eb"
+  }
+}

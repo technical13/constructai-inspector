@@ -1,0 +1,4 @@
+-r services/cv_inference/requirements.txt
+gradio==6.30.0
+spaces==0.51.3
+huggingface-hub==1.33.0

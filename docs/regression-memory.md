@@ -1,5 +1,16 @@
 # Regression Memory
 
+## ZeroGPU Boundary (2026-10-20)
+
+- A Mac-only device selector ignored NVIDIA GPUs; CUDA is now preferred when
+  available, while explicit device selection supports ZeroGPU startup emulation.
+- ZeroGPU requires Gradio-mediated jobs and startup model placement; a raw `/infer`
+  REST request is not a replacement for its queued GPU allocation protocol.
+- Gradio error/heartbeat/EOF events must never be interpreted as successful model
+  output. A new attempt must not silently consume more GPU quota via retries.
+- Keep packaged files allowlisted and model revisions pinned. No runtime project
+  data, credentials, or historical evidence may be included in a public Space.
+
 ## Known Fragile Zones
 
 - UI overlay rendering versus report overlay rendering parity
