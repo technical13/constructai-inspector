@@ -4,21 +4,23 @@
 
 ConstructAI Inspector is a mobile-first construction inspection software prototype (`MVP0 + V2`) for documenting defects, reviewing AI suggestions, and generating reports from saved inspection data.
 
-**Public demo:** [constructai-inspector.vercel.app](https://constructai-inspector.vercel.app/)
+**Public prototype:** [constructai-inspector.vercel.app](https://constructai-inspector.vercel.app/)
 
 Core capabilities include project and inspection session setup, photo-based defect records, human review of suggested defect types, comparison of CV models, crack-mask visualization, and HTML inspection reports. The crack-mask pipeline uses `DeepCrack/Grounding DINO seed -> SAM 2 refine`.
 
 The prototype supports documentation and human review; it does not provide a validated structural safety assessment.
 
-## Honest Public Demo
+## Public Preview and Local Workspace
 
-The public web demo is not presented as a production inference service.
+The public preview separates live inference from saved demonstrations. It is an experimental prototype, not a production inspection or structural-safety service.
 
 - `Demo Mode` uses **precomputed results from a real CV pipeline** on curated crack images.
 - These masks were generated locally through actual inference and then saved for reproducible public display.
-- Real analysis of **your own** photos is available only in **full local mode**, with the CV service running and the necessary model weights available.
+- `Try your photo` runs **new live inference** through the configured Hugging Face ZeroGPU Space. Photos are resized locally and sent only after explicit sharing consent and clicking Analyze. Queues, daily quotas, timeouts, and model errors remain possible; failures never silently fall back to a saved mask.
+- The public preview does not read or write projects, sessions, defect records, reports, or the demo library. Do not upload confidential photos or personal data; Hugging Face may temporarily cache uploads/results.
+- The full inspection and report workflow remains available in **local mode**. Local analysis of your own photos requires the running CV service and necessary model weights; alternatively, an explicitly configured cloud endpoint can be used.
 
-This distinction is intentional: the public demo shows the user experience, document workflow, and CV visualization. It is not an open online inference service for arbitrary uploaded photos.
+Live inference consumes the server token owner's shared free GPU allowance. Availability is limited, and a model score is not independently validated accuracy or a calibrated probability. See [public preview configuration and limitations](docs/public-preview.md) and [Hugging Face deployment](docs/huggingface.md). The new public release is distinct from earlier fixed revisions that offered precomputed demos only.
 
 Public application: [constructai-inspector.vercel.app](https://constructai-inspector.vercel.app)
 
@@ -82,7 +84,7 @@ If the checkpoint is missing, full local mode does not start inference; the appl
 - `Demo Mode`: curated photos and saved SAM 2 masks for public display without local Python inference.
 - HTML report generation from a saved session snapshot.
 - Local filesystem storage for development.
-- `Postgres` storage for Vercel/serverless deployment.
+- Optional `Postgres` storage backend; not used by the stateless public preview.
 - Fallback storage of images and HTML reports in `Postgres` when `Vercel Blob` is not configured.
 
 ## Manual Local Startup
@@ -189,7 +191,7 @@ The public MVP includes a `Demo Mode` section backed by static files in `public/
 - `public/demo/images/`: curated crack photos.
 - `public/demo/scenarios.json`: saved `Grounded SAM 2` results, including `visualEvidence.maskDataUrl`.
 
-This workflow runs on Vercel without a local Python service: select a demo photo and click `Run demo` to display the saved mask. This displays a precomputed result; it does not run new inference. You can still upload your own photos locally, but real analysis requires a running CV service.
+This workflow runs on Vercel without a local Python service: choose `Demo examples` and select a photo to display its saved mask. This does not run new inference. The separate `Try your photo` mode calls the configured cloud service; the full local workspace can use the local CV service.
 
 Demo cases can be added or deleted only in local writable mode. On Vercel, the demo library is automatically read-only: public users can run examples but cannot modify `public/demo/`.
 
@@ -204,7 +206,8 @@ The public collection is updated only with a new code revision. This preserves r
 
 The distinction is essential for transparent publication:
 
-- Public mode: precomputed demo results on curated examples.
+- Public `Demo examples`: precomputed results on curated examples.
+- Public `Try your photo`: new cloud inference, subject to GPU quotas and explicit consent.
 - Full local mode: real inference on user-supplied photos.
 
 By default, `DeepCrack`, `Grounding DINO`, `Grounded SAM 2`, and `Florence-2` can use the same local endpoint, `http://127.0.0.1:8001`. To run models through separate services, configure individual endpoints:
@@ -269,11 +272,17 @@ This checks that source directories contain no `.DS_Store` or Python cache files
 
 Public application: [https://constructai-inspector.vercel.app](https://constructai-inspector.vercel.app).
 
-The hosted application does not require a laptop to remain online. The deployment described here uses:
+The hosted public preview does not require a laptop to remain online. It uses:
 
 1. Vercel Functions and static assets from `public/`.
-2. Neon Postgres on the prototype's free-tier setup for projects, sessions, defects, and reports.
-3. Checked-in, read-only demo scenarios without online CV inference.
+2. A configured Hugging Face ZeroGPU Space for optional live analysis.
+3. Checked-in, read-only demo scenarios with precomputed masks.
+
+No database is needed for the public preview. Workspace APIs are disabled on Vercel before storage access. Follow [the public deployment configuration](docs/public-preview.md), including the server-only sensitive HF token, payload limits, and quota/error handling.
+
+### Optional Workspace Storage
+
+The existing Postgres/Blob backend remains available for the workspace in a trusted environment, not for anonymous public access. Its configuration is unchanged:
 
 Minimal configuration:
 
@@ -293,9 +302,9 @@ If `BLOB_READ_WRITE_TOKEN` is not set, images and HTML reports are stored in `Po
 ### Vercel Setup
 
 1. Import the repository into `Vercel`.
-2. Add `DATABASE_URL` to Environment Variables.
-3. Optionally connect `Vercel Blob` and add `BLOB_READ_WRITE_TOKEN`.
-4. Deploy the project.
+2. Add the inference variables from `docs/public-preview.md`; store the HF token as sensitive. Do not expose it to the browser.
+3. Verify a preview deployment, including upload consent, live results, demos, and denied workspace access.
+4. Publish the reviewed release. Existing database variables and stored data need not be changed.
 
 Vercel serves static files from `public/` directly. The API runs through `api/index.js` and `vercel.json`.
 

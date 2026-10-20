@@ -45,6 +45,9 @@
 - CUDA/MPS/CPU device selection and bounded cloud payload contracts
   (`services/cv_inference/tests/test_cloud_contract.py`)
 - Python model registry readiness and saturation behavior
+- stateless public API isolation, consent, payload/provenance limits,
+  concurrency/burst guards, failure honesty, bilingual labels, and stale-result
+  invalidation (`test/public-preview.test.js`)
 - segmentation metric determinism and benchmark provenance
 
 ## Benchmark Interpretation

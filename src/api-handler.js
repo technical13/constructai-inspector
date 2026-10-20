@@ -22,9 +22,11 @@ import {
 } from "./store.js"
 import {
   getDefaultCvModelKey,
-  isDemoLibraryWritable
+  isDemoLibraryWritable,
+  isPublicPreview
 } from "./runtime-config.js"
 import { getInferencePolicy } from "./inference-gateway.js"
+import { handlePublicPreview } from "./public-preview.js"
 
 function sendJson(response, statusCode, payload) {
   response.writeHead(statusCode, {
@@ -88,6 +90,9 @@ async function readJsonBody(request, maxBytes = 20 * 1024 * 1024) {
 }
 
 export async function handleApiRequest(request, response, pathname) {
+  if (isPublicPreview() || pathname.startsWith("/api/preview/")) {
+    return handlePublicPreview(request, response, pathname)
+  }
   try {
     if (request.method === "GET" && pathname === "/api/bootstrap") {
       const bootstrap = await getBootstrapData()

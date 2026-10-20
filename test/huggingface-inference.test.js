@@ -117,6 +117,20 @@ test("Gradio quota rejection is explicit and is never automatically retried", as
   assert.equal(calls, 1)
 })
 
+test("ZeroGPU quota errors inside an SSE job map to 429 without leaking provider details", async () => {
+  let calls = 0
+  await assert.rejects(request(async () => ++calls === 1
+    ? Response.json({ event_id: "quota-job" })
+    : streamResponse(["event: error\ndata: " + JSON.stringify({
+      title: "ZeroGPU quota exceeded", error: "private-provider-message"
+    }) + "\n\n"])), error => {
+      assert.equal(error.statusCode, 429)
+      assert.doesNotMatch(error.message, /private-provider-message/)
+      return true
+    })
+  assert.equal(calls, 2)
+})
+
 test("Gradio uses the shared end-to-end deadline", async () => {
   let calls = 0
   await assert.rejects(request(async (_url, options) => {

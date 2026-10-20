@@ -1,5 +1,30 @@
 # Stability Log
 
+## 2026-10-20 Public Live Preview
+
+- Change summary: Added a separate stateless public photo/demo experience, server-only
+  Gradio inference, explicit consent, bounded uploads, provenance/mask checks,
+  quota-aware errors, and mandatory Vercel workspace isolation. Local inspection
+  storage, human-review decisions and report snapshots are preserved.
+- Risk classification: `HIGH`
+- Stability score: `4`
+- Risk surface score: `4`
+- Invariant confidence: `5`
+- Test confidence: `4`
+- Verification: 56 Node tests passed, one isolated Postgres test skipped because
+  TEST_DATABASE_URL was not configured; 13 Python contracts passed. Lint,
+  module contracts, build, hygiene and audit passed. Local real browser upload
+  returned a live SAM 2 mask, raw score 0.420 and pending human review. EN/RU,
+  demo provenance, original/mask toggle and mobile overflow were checked.
+- Performance notes: 1600 px / 2 MiB photo cap, 3 MiB JSON cap, one active
+  public job and no per-process waiting queue. Deployment manifest excludes
+  runtime photos, credentials, weights and historical evidence.
+- Remaining risk surface: Shared free HF quota, queues/cold starts, imperfect CV
+  classification, and non-distributed burst counters. Public release checks are
+  recorded separately with the final deployment/source identifiers; deterministic
+  tests do not establish independent model accuracy. Existing three orphan local
+  uploads were not deleted. Production Postgres is not read or migrated.
+
 ## 2026-10-20: ZeroGPU Preparation
 
 - Change summary: Added an isolated Gradio Space package, CUDA portability,

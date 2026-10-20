@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#d5d1c4" />
+    <meta name="description" content="An experimental construction inspection prototype. Try live crack analysis or clearly labeled precomputed examples." />
+    <title>ConstructAI Inspector · Crack analysis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/app.css" />
+    <link rel="stylesheet" href="/preview.css" />
+  </head>
+  <body>
+    <div class="app-shell preview-shell">
+      <header class="masthead">
+        <div class="brand-lockup">
+          <div class="brand-mark" aria-hidden="true"><span></span><span></span></div>
+          <div>
+            <p class="brand-name">ConstructAI Inspector</p>
+            <p class="brand-caption" data-copy="caption">Visual inspection prototype</p>
+          </div>
+        </div>
+        <div class="locale-switch" role="group" aria-label="Language / Язык">
+          <button class="locale-switch__button is-active" type="button" data-language="en" aria-pressed="true">EN</button>
+          <button class="locale-switch__button" type="button" data-language="ru" aria-pressed="false">RU</button>
+        </div>
+      </header>
+      <main>
+        <header class="preview-intro">
+          <p class="screen-card__eyebrow" data-copy="eyebrow">Computer vision / Experimental</p>
+          <h1 data-copy="title">Crack analysis</h1>
+          <p data-copy="intro">Your photo. A model-generated contour. Your judgment.</p>
+        </header>
+        <section class="preview-instrument" aria-label="Image analysis" data-copy-aria="imageAnalysis">
+          <div class="preview-mode" role="group" aria-label="Analysis mode" data-copy-aria="analysisMode">
+            <button id="mode-live" class="preview-mode__button is-active" type="button" aria-pressed="true" data-copy="live">Try your photo</button>
+            <button id="mode-demo" class="preview-mode__button" type="button" aria-pressed="false" data-copy="demo">Demo examples</button>
+          </div>
+          <div class="preview-register">
+            <span id="result-origin">DeepCrack + SAM 2</span>
+            <button id="original-button" type="button" aria-pressed="false" hidden data-copy="original">Show original</button>
+          </div>
+          <div id="preview-stage" class="preview-stage" aria-busy="false">
+            <div id="empty-stage" class="preview-empty">
+              <span class="preview-crosshair" aria-hidden="true"></span>
+              <p data-copy="empty">Start with a concrete-surface photo.</p>
+              <small data-copy="emptyHint">JPEG, PNG or WebP · up to 12 MiB / 12 megapixels</small>
+            </div>
+            <img id="preview-photo" alt="" hidden />
+            <img id="preview-mask" alt="" hidden />
+          </div>
+          <div id="result-panel" class="preview-result" hidden>
+            <h2 id="result-title"></h2>
+            <p><span data-copy="score">Model score</span> <strong id="model-score"></strong><span class="preview-score-note" data-copy="scoreNote">Not validated accuracy or a calibrated probability.</span></p>
+            <p id="no-mask-note" class="inline-note" hidden data-copy="noMask">No contour mask was returned. This does not prove that the surface is defect-free.</p>
+          </div>
+          <div class="preview-controls">
+            <p id="preview-status" class="preview-status" role="status" aria-live="polite"></p>
+            <div id="live-controls">
+              <input id="photo-file" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+              <div class="preview-actions">
+                <button id="choose-button" class="button button--plain" type="button" data-copy="choose">Choose photo</button>
+                <button id="analyze-button" class="button" type="button" disabled data-copy="analyze">Analyze photo</button>
+                <button id="clear-button" class="preview-clear" type="button" hidden data-copy="clear">Clear</button>
+              </div>
+              <label class="preview-consent"><input id="photo-consent" type="checkbox" /><span data-copy="consent">I can share this non-sensitive photo with Hugging Face for analysis.</span></label>
+              <p class="preview-fineprint" data-copy="privacy">Photos are resized before sending. No project records are saved here; Hugging Face may temporarily cache uploads and results.</p>
+            </div>
+            <p id="demo-explanation" class="preview-demo-note" hidden data-copy="demoNote">Precomputed AI masks. Choosing an example does not run a new analysis.</p>
+          </div>
+        </section>
+        <section id="demo-section" class="preview-demos" hidden aria-labelledby="demo-heading">
+          <h2 id="demo-heading" data-copy="demo">Demo examples</h2>
+          <div id="demo-list" class="preview-demo-list"></div>
+        </section>
+        <div class="preview-notes">
+          <p data-copy="quota">Free shared GPU · queues and daily limits apply.</p>
+          <p data-copy="limitation">Experimental output, not a structural-safety assessment. False positives and missed cracks are possible.</p>
+          <details><summary data-copy="about">How it works</summary><p data-copy="aboutCopy"></p><p data-copy="noSensitive"></p></details>
+        </div>
+      </main>
+      <footer class="preview-footer">
+        <a href="https://github.com/technical13/constructai-inspector" target="_blank" rel="noopener noreferrer" data-copy="source">Source & local setup</a>
+        <span>by maksim sabrekov</span>
+      </footer>
+    </div>
+    <script type="module" src="/preview.js"></script>
+  </body>
+</html>

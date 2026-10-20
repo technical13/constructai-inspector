@@ -65,6 +65,12 @@ export function isDemoLibraryWritable() {
   return readNonEmptyEnv("VERCEL") === ""
 }
 
+export function isPublicPreview() {
+  if (readNonEmptyEnv("VERCEL") !== "") return true
+  const explicit = readNonEmptyEnv("PUBLIC_PREVIEW_MODE").toLowerCase()
+  return ["1", "true", "yes"].includes(explicit)
+}
+
 export function getCvInferenceUrl() {
   const explicit = readNonEmptyEnv("CV_INFERENCE_URL")
 

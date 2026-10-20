@@ -1,5 +1,20 @@
 # Regression Memory
 
+## Public Preview Boundary (2026-10-20)
+
+- Vercel must deny workspace API reads as well as writes, even if an environment
+  variable tries to disable public mode. Never call bootstrap/store/schema setup
+  as a health check in public mode.
+- Image input consent, raster/base64/body caps, actual input hash and mask size
+  checks are independent of UI validation. Error text from providers is private.
+- Quota denial can arrive as an SSE error after successful job submission; map
+  it to a visible error, not a demo mask or an automatic retry.
+- Changing photo/mode invalidates pending results; a canceled browser request
+  cannot promise cancellation of an already submitted GPU job.
+- Demo fixtures can contain legacy accepted flags and Russian text. Public DTOs
+  reset review to pending; the bilingual UI uses its own localized provisional
+  labels rather than displaying stored localized rationale/type strings.
+
 ## ZeroGPU Boundary (2026-10-20)
 
 - A Mac-only device selector ignored NVIDIA GPUs; CUDA is now preferred when

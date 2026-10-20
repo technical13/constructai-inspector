@@ -7,6 +7,11 @@ const requiredFiles = [
   "public/app.css",
   "public/app.js",
   "public/ai-review.js",
+  "public/try.html",
+  "public/preview.css",
+  "public/preview.js",
+  "public/preview-contract.js",
+  "src/public-preview.js",
   "src/server.js",
   "src/api-handler.js",
   "src/report.js",
@@ -36,6 +41,12 @@ if (!html.includes('src="/app.js"')) {
 
 if (!vercel.rewrites && !vercel.routes) {
   throw new Error("build: vercel.json has no routing configuration")
+}
+
+const previewHtml = await readFile(new URL("../public/try.html", import.meta.url), "utf8")
+if (!previewHtml.includes('src="/preview.js"') || !previewHtml.includes('href="/preview.css"') ||
+    !vercel.rewrites?.some(rule => rule.source === "/" && rule.destination === "/try.html")) {
+  throw new Error("build: public preview entry point or deployment route is missing")
 }
 
 for (const localOnlyPath of [

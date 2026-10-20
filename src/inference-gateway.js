@@ -184,6 +184,15 @@ async function readGradioResult(response) {
         const lines = frame.split(/\r?\n/)
         const event = lines.find((line) => line.startsWith("event:"))?.slice(6).trim()
         if (event === "error") {
+          const data = lines.filter((line) => line.startsWith("data:"))
+            .map((line) => line.slice(5).trimStart()).join("\n")
+          try {
+            if (JSON.parse(data)?.title === "ZeroGPU quota exceeded") {
+              throw new AppError(429, "The shared GPU allowance is currently exhausted.")
+            }
+          } catch (error) {
+            if (error instanceof AppError) throw error
+          }
           throw new AppError(503, "Cloud inference failed or the GPU quota is unavailable.")
         }
         if (event !== "complete") continue
