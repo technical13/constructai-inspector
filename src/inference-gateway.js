@@ -2,7 +2,9 @@ import { AppError } from "./app-error.js"
 import {
   getCvInferenceMaxConcurrency,
   getCvInferenceMaxQueue,
-  getCvInferenceTimeoutMs
+  getCvInferenceTimeoutMs,
+  getCvInferenceTransport,
+  getCvInferenceToken
 } from "./runtime-config.js"
 
 export class InferenceQueueFullError extends Error {
@@ -154,6 +156,96 @@ function getResponseError(payload, statusCode) {
   )
 }
 
+const MAX_GRADIO_RESPONSE_BYTES = 32 * 1024 * 1024
+
+async function readGradioResult(response) {
+  if (!response.body) throw new AppError(502, "Gradio returned an empty event stream.")
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let tail = ""
+  let frameParts = []
+  let bytes = 0
+  try {
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+      bytes += value.byteLength
+      if (bytes > MAX_GRADIO_RESPONSE_BYTES) {
+        throw new AppError(502, "Gradio response exceeded the size limit.")
+      }
+      // Keep only the possible separator suffix; do not rescan a growing mask.
+      const text = tail + decoder.decode(value, { stream: true })
+      let start = 0
+      for (const boundary of text.matchAll(/\r?\n\r?\n/g)) {
+        frameParts.push(text.slice(start, boundary.index))
+        const frame = frameParts.join("")
+        frameParts = []
+        start = boundary.index + boundary[0].length
+        const lines = frame.split(/\r?\n/)
+        const event = lines.find((line) => line.startsWith("event:"))?.slice(6).trim()
+        if (event === "error") {
+          const data = lines.filter((line) => line.startsWith("data:"))
+            .map((line) => line.slice(5).trimStart()).join("\n")
+          try {
+            if (JSON.parse(data)?.title === "ZeroGPU quota exceeded") {
+              throw new AppError(429, "The shared GPU allowance is currently exhausted.")
+            }
+          } catch (error) {
+            if (error instanceof AppError) throw error
+          }
+          throw new AppError(503, "Cloud inference failed or the GPU quota is unavailable.")
+        }
+        if (event !== "complete") continue
+        const data = lines.filter((line) => line.startsWith("data:"))
+          .map((line) => line.slice(5).trimStart()).join("\n")
+        const output = parseResponsePayload(data)
+        if (!Array.isArray(output) || output.length !== 1 ||
+            !output[0] || typeof output[0] !== "object" || Array.isArray(output[0])) {
+          throw new AppError(502, "Gradio returned an invalid inference result.")
+        }
+        return output[0]
+      }
+      const remainder = text.slice(start)
+      const safeLength = Math.max(0, remainder.length - 3)
+      if (safeLength > 0) frameParts.push(remainder.slice(0, safeLength))
+      tail = remainder.slice(safeLength)
+      if (frameParts.length > 100_000) {
+        throw new AppError(502, "Gradio response was excessively fragmented.")
+      }
+    }
+    throw new AppError(502, "Gradio ended without a completed inference result.")
+  } finally {
+    await reader.cancel().catch(() => {})
+  }
+}
+
+async function requestGradio({ endpointUrl, imageDataUrl, modelKey, fetchImpl, signal, token }) {
+  const headers = {
+    "content-type": "application/json",
+    ...(token ? { authorization: `Bearer ${token}` } : {})
+  }
+  const base = `${endpointUrl.replace(/\/$/, "")}/gradio_api/call/infer`
+  const submitted = await fetchImpl(base, {
+    method: "POST", headers, redirect: "error", signal,
+    body: JSON.stringify({ data: [{ imageDataUrl, modelKey }] })
+  })
+  if (!submitted.ok) {
+    throw new AppError(submitted.status, "Cloud inference submission was rejected.")
+  }
+  const job = parseResponsePayload(await submitted.text())
+  if (!job || typeof job.event_id !== "string" || !/^[a-zA-Z0-9_-]{1,128}$/.test(job.event_id)) {
+    throw new AppError(502, "Gradio returned an invalid job identifier.")
+  }
+  const response = await fetchImpl(`${base}/${job.event_id}`, {
+    headers: token ? { authorization: `Bearer ${token}` } : {},
+    redirect: "error", signal
+  })
+  if (!response.ok) {
+    throw new AppError(response.status, "Cloud inference result was unavailable.")
+  }
+  return readGradioResult(response)
+}
+
 export function getInferencePolicy() {
   return {
     timeoutMs: getCvInferenceTimeoutMs(),
@@ -164,7 +256,12 @@ export function getInferencePolicy() {
 
 export async function requestInference(
   { endpointUrl, imageDataUrl, modelKey },
-  { fetchImpl = globalThis.fetch, timeoutMs = getCvInferenceTimeoutMs() } = {}
+  {
+    fetchImpl = globalThis.fetch,
+    timeoutMs = getCvInferenceTimeoutMs(),
+    transport = getCvInferenceTransport(),
+    token = getCvInferenceToken()
+  } = {}
 ) {
   const timeoutSignal = AbortSignal.timeout(timeoutMs)
   const executor = getEndpointExecutor(endpointUrl)
@@ -173,6 +270,12 @@ export async function requestInference(
   try {
     result = await executor.run(
       async () => {
+        if (transport === "gradio") {
+          const payload = await requestGradio({
+            endpointUrl, imageDataUrl, modelKey, fetchImpl, signal: timeoutSignal, token
+          })
+          return { ok: true, status: 200, text: JSON.stringify(payload) }
+        }
         const response = await fetchImpl(`${endpointUrl}/infer`, {
           method: "POST",
           headers: {

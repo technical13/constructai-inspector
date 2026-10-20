@@ -688,9 +688,10 @@ test("demo mutation API rejects writes in a read-only deployment", async () => {
   restoreEnv("DEMO_LIBRARY_WRITABLE", previousOverride)
 
   assert.equal(statusCode, 403)
+  assert.equal(JSON.parse(responseBody).code, "WORKSPACE_PRIVATE")
   assert.equal(
     JSON.parse(responseBody).error,
-    "Demo-библиотека доступна только для чтения."
+    "The inspection workspace is not available in this public preview."
   )
 })
 

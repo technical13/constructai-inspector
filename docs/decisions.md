@@ -1,5 +1,37 @@
 # Decisions
 
+## 2026-10-20: Stateless Public Live Preview
+
+- Risk: HIGH. Add a separate small public interface, not a tenant/auth rewrite of
+  the inspection workspace. Vercel always guards workspace APIs before storage.
+- A consented photo is resized locally and sent through one bounded server-side
+  Gradio call. Only the configured SAM 2 pipeline is exposed publicly; its raw
+  score and type remain provisional. Existing local model comparison is preserved.
+- Demo selection loads existing fixtures explicitly, without live inference or
+  inherited accepted flags. Stale results are discarded after photo/mode changes.
+- Keep existing schema, reports, photos, historical evidence and fixed commits
+  unchanged. Publish the new app under a new revision; never reuse the old
+  unchanged-application-code assertion for this release.
+- The free quota belongs to the server token owner. A per-process burst limiter
+  is not a distributed fair-use guarantee; provider quotas and queue limits remain
+  explicit. No new paid service or production database mutation is required.
+
+## 2026-10-20: Isolated Hugging Face ZeroGPU Companion
+
+- Decision: deploy a separate Gradio ZeroGPU Space using the existing DeepCrack
+  and SAM 2 inference code, with Grounding DINO fallback; keep Vercel production
+  and all historical evidence unchanged during cloud validation.
+- Boundary: opt-in Gradio transport; REST remains the default. No storage schema,
+  human-review transition, report snapshot, or browser UI changes are required.
+- Reproducibility: pin model revisions and checkpoint SHA-256; package an explicit
+  file allowlist, with a source/build manifest. Do not upload the whole repository.
+- Resource policy: one active job, finite queues/deadlines and response sizes;
+  no automatic retries, paid GPU upgrade, or fallback to mock inference.
+- Portability: prefer CUDA when present, preserve Mac MPS/CPU, and use float32
+  inputs with float32 model weights rather than untested half-precision inputs.
+- Constraint: shared free GPU quotas/queues are not an always-on SLA or independent
+  accuracy validation. One backend token means one shared account allowance.
+
 ## 2026-10-17: Explicit Review And Evidence Readiness
 
 - Risk: `HIGH` (persisted decision semantics and report provenance).

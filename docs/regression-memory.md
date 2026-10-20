@@ -1,5 +1,40 @@
 # Regression Memory
 
+## Public Preview Boundary (2026-10-20)
+
+- Vercel's static `index.html` wins over a root rewrite in this Other-framework
+  deployment. Use an explicit root redirect to `/try`, not just a rewrite, and
+  verify the deployed root rather than relying on local routing tests.
+- Vercel must deny workspace API reads as well as writes, even if an environment
+  variable tries to disable public mode. Never call bootstrap/store/schema setup
+  as a health check in public mode.
+- Image input consent, raster/base64/body caps, actual input hash and mask size
+  checks are independent of UI validation. Error text from providers is private.
+- Quota denial can arrive as an SSE error after successful job submission; map
+  it to a visible error, not a demo mask or an automatic retry.
+- Changing photo/mode invalidates pending results; a canceled browser request
+  cannot promise cancellation of an already submitted GPU job.
+- Demo fixtures can contain legacy accepted flags and Russian text. Public DTOs
+  reset review to pending; the bilingual UI uses its own localized provisional
+  labels rather than displaying stored localized rationale/type strings.
+
+## ZeroGPU Boundary (2026-10-20)
+
+- A Mac-only device selector ignored NVIDIA GPUs; CUDA is now preferred when
+  available, while explicit device selection supports ZeroGPU startup emulation.
+- ZeroGPU requires Gradio-mediated jobs and startup model placement; a raw `/infer`
+  REST request is not a replacement for its queued GPU allocation protocol.
+- Gradio error/heartbeat/EOF events must never be interpreted as successful model
+  output. A new attempt must not silently consume more GPU quota via retries.
+- Keep packaged files allowlisted and model revisions pinned. No runtime project
+  data, credentials, or historical evidence may be included in a public Space.
+- The Gradio builder mounts only the root requirements file under `/tmp` before
+  copying app source. Nested `-r services/...` includes fail there. Keep the Space
+  requirements self-contained; a regression test checks parity with CV pins.
+- The builder injects Gradio's `mcp,oauth` extras even when the app does not enable
+  those features. Gradio 6.30.0's MCP extra requires Pydantic <=2.12.5. Keep the
+  explicitly documented Space-only pin; do not downgrade the local CV environment.
+
 ## Known Fragile Zones
 
 - UI overlay rendering versus report overlay rendering parity

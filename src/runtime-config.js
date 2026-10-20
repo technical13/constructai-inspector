@@ -65,6 +65,12 @@ export function isDemoLibraryWritable() {
   return readNonEmptyEnv("VERCEL") === ""
 }
 
+export function isPublicPreview() {
+  if (readNonEmptyEnv("VERCEL") !== "") return true
+  const explicit = readNonEmptyEnv("PUBLIC_PREVIEW_MODE").toLowerCase()
+  return ["1", "true", "yes"].includes(explicit)
+}
+
 export function getCvInferenceUrl() {
   const explicit = readNonEmptyEnv("CV_INFERENCE_URL")
 
@@ -121,6 +127,16 @@ export function getCvInferenceMode() {
 
 export function getCvInferenceTimeoutMs() {
   return readBoundedInteger("CV_INFERENCE_TIMEOUT_MS", 120_000, 1_000, 600_000)
+}
+
+export function getCvInferenceTransport() {
+  return readNonEmptyEnv("CV_INFERENCE_TRANSPORT").toLowerCase() === "gradio"
+    ? "gradio"
+    : "rest"
+}
+
+export function getCvInferenceToken() {
+  return readNonEmptyEnv("CV_INFERENCE_TOKEN")
 }
 
 export function getCvInferenceMaxConcurrency() {

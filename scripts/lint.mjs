@@ -40,6 +40,7 @@ const pyFiles = await collectFiles(
   path.join("services", "cv_inference"),
   new Set([".py"])
 )
+pyFiles.push(...await collectFiles(path.join("deploy", "huggingface"), new Set([".py"])))
 
 const pythonSyntaxCheck = `
 import pathlib

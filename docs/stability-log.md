@@ -1,5 +1,51 @@
 # Stability Log
 
+## 2026-10-20 Public Live Preview
+
+- Change summary: Added a separate stateless public photo/demo experience, server-only
+  Gradio inference, explicit consent, bounded uploads, provenance/mask checks,
+  quota-aware errors, and mandatory Vercel workspace isolation. Local inspection
+  storage, human-review decisions and report snapshots are preserved.
+- Risk classification: `HIGH`
+- Stability score: `4`
+- Risk surface score: `4`
+- Invariant confidence: `5`
+- Test confidence: `4`
+- Verification: 57 Node tests passed, one isolated Postgres test skipped because
+  TEST_DATABASE_URL was not configured; 13 Python contracts passed. Lint,
+  module contracts, build, hygiene and audit passed. Local real browser upload
+  returned a live SAM 2 mask, raw score 0.420 and pending human review. EN/RU,
+  demo provenance, original/mask toggle and mobile overflow were checked.
+- Performance notes: 1600 px / 2 MiB photo cap, 3 MiB JSON cap, one active
+  public job and no per-process waiting queue. Deployment manifest excludes
+  runtime photos, credentials, weights and historical evidence.
+- Remaining risk surface: Shared free HF quota, queues/cold starts, imperfect CV
+  classification, and non-distributed burst counters. Public release checks are
+  recorded separately with the final deployment/source identifiers; deterministic
+  tests do not establish independent model accuracy. Existing three orphan local
+  uploads were not deleted. Production Postgres is not read or migrated.
+- Preview audit caught static-index precedence on the deployed root. Replaced
+  its rewrite with an explicit `/try` redirect and added a regression contract.
+
+## 2026-10-20: ZeroGPU Preparation
+
+- Change summary: Added an isolated Gradio Space package, CUDA portability,
+  checkpoint/model pins, input limits, and opt-in queued Gradio transport.
+- Risk classification: `HIGH`
+- Stability score: `4`
+- Risk surface score: `4`
+- Invariant confidence: `5`
+- Test confidence: `4`
+- Verification: Deterministic verify passed; packaged Gradio UI built with
+  Gradio 6.30.0; real local DeepCrack inference through the queued API returned
+  a mask and `pending_review`. Final cloud startup/inference is a separate check.
+- Performance notes: One active GPU job; four waiting jobs; 120-second GPU
+  duration; 1600-pixel maximum inference side; 32 MiB SSE response cap and
+  incremental parsing without rescanning accumulated mask data.
+- Remaining risk surface: Cloud GPU execution not established by local tests;
+  free quotas/queues, model false positives/negatives, optional Postgres test
+  skipped without local test DB; three pre-existing orphan uploads left untouched.
+
 ## Entry Template
 
 - Date:

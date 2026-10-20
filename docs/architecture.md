@@ -17,6 +17,8 @@ The repository is intentionally preserved as an existing web runtime rather than
 - External CV service: `services/cv_inference/app.py`
 - CV model registry: `services/cv_inference/model_registry.py`
 - Reproducible CV benchmark: `benchmarks/cv/manifest.json`, `scripts/cv_benchmark.py`
+- Optional ZeroGPU deployment: `deploy/huggingface/`, `docs/huggingface.md`
+- Stateless public preview: `public/try.html`, `public/preview.js`, `src/public-preview.js`
 
 ## Boundaries
 
@@ -59,3 +61,12 @@ The application must remain operational when the CV service is absent. The deter
 The Node gateway and Python registry are both bounded. The duplicate limit is deliberate:
 the gateway protects product traffic, while the registry protects the ML runtime from
 direct callers and accidental parallel model loading.
+
+The optional Gradio transport uses the same bounded gateway and suggestion contract.
+It submits one job and reads the completed SSE result; it never silently changes
+the default REST transport. The separate ZeroGPU Space has no project database.
+
+On Vercel, the API dispatches to the public preview boundary before any storage
+function is called. Only `/api/preview/config` and `/api/preview/analyze` are
+available. The deployment root renders `try.html`; the full inspection workflow
+remains local. No schema or report snapshot is migrated. See `docs/public-preview.md`.

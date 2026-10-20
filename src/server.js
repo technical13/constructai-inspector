@@ -5,6 +5,7 @@ import path from "node:path"
 import { AppError } from "./app-error.js"
 import { handleApiRequest } from "./api-handler.js"
 import { paths } from "./paths.js"
+import { isPublicPreview } from "./runtime-config.js"
 
 const port = Number(process.env.PORT ?? 3000)
 const host = process.env.HOST || "127.0.0.1"
@@ -81,6 +82,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (pathname.startsWith("/uploads/")) {
+      if (isPublicPreview()) throw new AppError(403, "Workspace media is private.")
       const filePath = resolveStaticPath(
         paths.uploadsDir,
         pathname.slice("/uploads/".length)
@@ -90,6 +92,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (pathname.startsWith("/reports/")) {
+      if (isPublicPreview()) throw new AppError(403, "Workspace reports are private.")
       const filePath = resolveStaticPath(
         paths.reportsDir,
         pathname.slice("/reports/".length)
@@ -98,8 +101,8 @@ const server = createServer(async (request, response) => {
       return
     }
 
-    const publicPath =
-      pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "")
+    const publicPath = pathname === "/try" || (pathname === "/" && isPublicPreview())
+      ? "try.html" : pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "")
     const filePath = resolveStaticPath(paths.publicDir, publicPath)
     await serveFile(response, filePath)
   } catch (error) {

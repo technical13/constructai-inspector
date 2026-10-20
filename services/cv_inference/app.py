@@ -18,6 +18,7 @@ from transformers import (
 )
 
 from .deepcrack_model import DeepCrack
+from .cloud_contract import select_device_name
 from .model_registry import ModelBusyError, ModelRegistry, UnknownModelError
 
 
@@ -43,6 +44,8 @@ MODEL_PATH = Path(__file__).resolve().parent / "models" / "deepcrack_ct260.pth"
 GROUNDING_DINO_MODEL_ID = os.getenv(
     "GROUNDING_DINO_MODEL_ID", "IDEA-Research/grounding-dino-base"
 )
+GROUNDING_DINO_MODEL_REVISION = os.getenv("GROUNDING_DINO_MODEL_REVISION") or None
+SAM2_MODEL_REVISION = os.getenv("SAM2_MODEL_REVISION") or None
 CANVAS_SIZE = 512
 MASK_THRESHOLD = float(os.getenv("DEEPCRACK_THRESHOLD", "0.85"))
 MIN_POSITIVE_PIXELS = int(os.getenv("DEEPCRACK_MIN_PIXELS", "350"))
@@ -141,13 +144,12 @@ def parse_image_data_url(data_url: str) -> Image.Image:
 
 
 def choose_device() -> torch.device:
-    if torch.backends.mps.is_available():
-        return torch.device("mps")
-    return torch.device("cpu")
+    return torch.device(select_device_name(torch, os.getenv("CV_DEVICE", "auto")))
 
 
 def choose_inference_dtype(device: torch.device) -> torch.dtype:
-    return torch.float16 if device.type == "cuda" else torch.float32
+    # The loaded model weights are float32; half inputs require explicit autocast.
+    return torch.float32
 
 
 def move_inputs_to_device(batch: dict, device: torch.device, dtype: torch.dtype) -> dict:
@@ -864,7 +866,7 @@ class DeepCrackService:
                 )
 
             model = DeepCrack().to(self.device)
-            state = torch.load(MODEL_PATH, map_location="cpu")
+            state = torch.load(MODEL_PATH, map_location="cpu", weights_only=True)
             model.load_state_dict(state)
             model.eval()
             self.model = model
@@ -953,9 +955,11 @@ class GroundingDinoService:
         with self._load_lock:
             if self.processor is not None and self.model is not None:
                 return
-            processor = AutoProcessor.from_pretrained(GROUNDING_DINO_MODEL_ID)
+            processor = AutoProcessor.from_pretrained(
+                GROUNDING_DINO_MODEL_ID, revision=GROUNDING_DINO_MODEL_REVISION
+            )
             model = AutoModelForZeroShotObjectDetection.from_pretrained(
-                GROUNDING_DINO_MODEL_ID
+                GROUNDING_DINO_MODEL_ID, revision=GROUNDING_DINO_MODEL_REVISION
             )
             model = model.to(self.device)
             model.eval()
@@ -1286,8 +1290,12 @@ class GroundedSam2Service:
         with self._load_lock:
             if self.processor is not None and self.model is not None:
                 return
-            processor = Sam2Processor.from_pretrained(SAM2_MODEL_ID)
-            model = Sam2Model.from_pretrained(SAM2_MODEL_ID)
+            processor = Sam2Processor.from_pretrained(
+                SAM2_MODEL_ID, revision=SAM2_MODEL_REVISION
+            )
+            model = Sam2Model.from_pretrained(
+                SAM2_MODEL_ID, revision=SAM2_MODEL_REVISION
+            )
             model = model.to(self.device)
             model.eval()
             self.processor = processor

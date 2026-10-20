@@ -28,6 +28,10 @@ const requiredModules = [
     keys: ["BoundedExecutor", "getInferencePolicy", "requestInference"]
   },
   {
+    path: "../src/public-preview.js",
+    keys: ["handlePublicPreview", "getPreviewConfig", "normalizePreviewResult", "validatePreviewPayload"]
+  },
+  {
     path: "../src/cv-benchmark.js",
     keys: ["validateCvBenchmarkManifest"]
   },

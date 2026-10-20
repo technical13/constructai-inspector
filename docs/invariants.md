@@ -15,6 +15,11 @@
 11. A matching suggested/final type never proves acceptance. New reviews have `review.version=1` and an explicit decision independent of `typeMatchesSuggestion`.
 12. `manual` survives saving and subsequent type edits until the operator explicitly changes the review. A new inference result starts pending and has a new `suggestionId`.
 13. Legacy status flags without a versioned review are not evidence of an explicit human action. Reading them must not rewrite stored data or historical HTML.
+14. A cloud queue error, missing completion event, timeout, or exhausted GPU quota is not a successful inference result and must not trigger implicit retries or acceptance.
+15. A cloud upload package contains only allowlisted code, pinned public-model artifacts, and build metadata, never project storage, user photos, credentials, or historical evidence.
+16. The public Vercel preview cannot read or mutate workspace projects, sessions, defects, media, reports, or the demo library. It never opens a database connection.
+17. Public live inference requires explicit upload consent, one supported model, bounded raster payloads, verified input provenance, and matching mask dimensions. No result is auto-accepted.
+18. Switching photo or mode invalidates in-flight results. A failed live request never becomes a precomputed demo result implicitly.
 
 ## State Mutation Discipline
 

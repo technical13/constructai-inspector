@@ -247,6 +247,7 @@ async function auditSourceGraph() {
     path.join("api", "index.js"),
     path.join("src", "server.js"),
     path.join("public", "app.js"),
+    path.join("public", "preview.js"),
     ...sourceFiles.filter((file) => file.startsWith(`scripts${path.sep}`)),
     ...sourceFiles.filter((file) => file.startsWith(`test${path.sep}`))
   ])
