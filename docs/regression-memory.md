@@ -10,6 +10,9 @@
   output. A new attempt must not silently consume more GPU quota via retries.
 - Keep packaged files allowlisted and model revisions pinned. No runtime project
   data, credentials, or historical evidence may be included in a public Space.
+- The Gradio builder mounts only the root requirements file under `/tmp` before
+  copying app source. Nested `-r services/...` includes fail there. Keep the Space
+  requirements self-contained; a regression test checks parity with CV pins.
 
 ## Known Fragile Zones
 

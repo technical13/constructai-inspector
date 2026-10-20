@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { promises as fs } from "node:fs"
 import test from "node:test"
 
 import { requestInference } from "../src/inference-gateway.js"
@@ -6,6 +7,17 @@ import { getCvInferenceToken, getCvInferenceTransport } from "../src/runtime-con
 
 const imageDataUrl = "data:image/png;base64,YQ=="
 const suggestion = { status: "pending_review", suggestedType: "crack", confidence: 0.61 }
+
+test("Space requirements are self-contained and retain the pinned CV dependencies", async () => {
+  const base = await fs.readFile(new URL("../services/cv_inference/requirements.txt", import.meta.url), "utf8")
+  const space = await fs.readFile(new URL("../deploy/huggingface/requirements.txt", import.meta.url), "utf8")
+  assert.ok(!/^\s*(?:-r|--requirement|\.\/?|\/)/m.test(space))
+  const requirements = (text) => text.split("\n").map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"))
+  for (const dependency of requirements(base)) {
+    assert.ok(requirements(space).includes(dependency), `Missing CV dependency: ${dependency}`)
+  }
+})
 
 function streamResponse(parts) {
   return new Response(new ReadableStream({
