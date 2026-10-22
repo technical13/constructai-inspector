@@ -48,6 +48,10 @@
 - stateless public API isolation, consent, payload/provenance limits,
   concurrency/burst guards, failure honesty, bilingual labels, and stale-result
   invalidation (`test/public-preview.test.js`)
+- SAM 3 pinned weights/configuration, empty native mask geometry, unrounded
+  scores, retired execution rejection and historical provenance preservation
+  (`test/sam3-migration.test.js`, `services/cv_inference/tests/test_sam3_contract.py`)
+- code-only SAM 3 Space packaging with no retired implementation or weights
 - segmentation metric determinism and benchmark provenance
 
 ## Benchmark Interpretation
@@ -56,6 +60,10 @@ The checked-in `constructai-crack-regression-v1` references are approved histori
 outputs. They test reproducibility and drift, not real-world accuracy. Accuracy ranking
 requires a separate manifest with independently human-annotated masks and
 `referencePolicy.kind = human-annotated`.
+
+SAM 3 is now the default execution model; these historical SAM 2 references have
+not been replaced or renamed. Strict cross-model similarity gates may fail and
+must not be lowered merely to make a model replacement green.
 
 ## Human Review Regressions
 

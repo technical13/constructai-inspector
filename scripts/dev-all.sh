@@ -38,13 +38,13 @@ HOST=127.0.0.1 node src/server.js &
 WEB_PID=$!
 
 if [[ "$WITH_CV" -eq 1 ]]; then
-  if [[ -x ".venv-cv/bin/python" && -f "services/cv_inference/models/deepcrack_ct260.pth" ]]; then
+  if [[ -x ".venv-cv/bin/python" ]]; then
     echo "==> Starting CV inference service"
     .venv-cv/bin/python -m uvicorn services.cv_inference.app:app --host 127.0.0.1 --port 8001 &
     CV_PID=$!
   else
     echo "==> CV service was requested but is not ready."
-    echo "    Make sure .venv-cv exists and DeepCrack weights are present."
+    echo "    Create .venv-cv and prepare the approved SAM 3 weights first."
   fi
 else
   echo "==> Running in public demo mode only"

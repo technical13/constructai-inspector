@@ -1,1 +1,1 @@
-"""DeepCrack inference service package for ConstructAI."""
+"""ConstructAI inference adapters; SAM 3 is the primary crack segmentation model."""

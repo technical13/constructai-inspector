@@ -60,12 +60,12 @@ if [[ "$WITH_CV" -eq 1 ]]; then
 
     .venv-cv/bin/pip install -r services/cv_inference/requirements.txt
 
-    if [[ -f "services/cv_inference/models/deepcrack_ct260.pth" ]]; then
+    if .venv-cv/bin/python -B scripts/prepare-sam3.py; then
       CV_READY=1
     else
-      echo "==> DeepCrack weights are missing:"
-      echo "    services/cv_inference/models/deepcrack_ct260.pth"
-      echo "    Full local inference will stay disabled until the checkpoint is added."
+      echo "==> SAM 3 weights are not ready."
+      echo "    Approve access at https://huggingface.co/facebook/sam3 and sign in with hf auth login --force."
+      echo "    Demo mode remains available; no substitute live result will be generated."
     fi
   fi
 fi
@@ -82,7 +82,7 @@ echo "One-command demo start:"
 echo "  npm run quickstart"
 echo
 echo "Full local mode with real inference:"
-echo "  1. Put DeepCrack checkpoint into services/cv_inference/models/deepcrack_ct260.pth"
+echo "  1. Approve SAM 3 access and sign in locally with: .venv-cv/bin/hf auth login --force"
 echo "  2. Run: npm run quickstart:full"
 
 if [[ "$WITH_CV" -eq 1 && "$CV_READY" -eq 1 ]]; then

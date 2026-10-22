@@ -2,7 +2,9 @@
 
 # ConstructAI Inspector
 
-`MVP0 + V2` цифрового стройконтроля: мобильный web-интерфейс для запуска инспекционной сессии, фиксации дефектов с фото, AI-подсказки по типу дефекта и генерации акта на основе сохранённых данных. Для трещин приложение поддерживает сравнение нескольких CV-моделей; самый визуальный контур сейчас строится в pipeline `DeepCrack/Grounding DINO seed -> SAM 2 refine`.
+`MVP0 + V2` цифрового стройконтроля: мобильный web-интерфейс для запуска инспекционной сессии, фиксации дефектов с фото, AI-подсказки по типу дефекта и генерации акта на основе сохранённых данных. Для трещин приложение поддерживает сравнение нескольких CV-моделей; основная модель этой версии исходного кода — предобученная Meta `SAM 3` с фиксированным запросом `crack in concrete`, без отдельного детектора.
+
+Изменение исходного кода само по себе не обновляет публичное приложение. SAM 3 Space и web-backend выпускаются согласованно по [инструкции перехода](docs/sam3-migration.md). Старые демо-маски сохраняют исходное имя SAM 2 и не переименовываются в SAM 3.
 
 ## Публичный просмотр и локальный рабочий режим
 
@@ -44,12 +46,7 @@ npm run quickstart
 
 Если пользователь хочет воспроизвести именно локальный inference на своих фото:
 
-1. положить checkpoint `DeepCrack` в:
-
-```text
-services/cv_inference/models/deepcrack_ct260.pth
-```
-
+1. получить доступ к [facebook/sam3](https://huggingface.co/facebook/sam3) и самостоятельно ознакомиться с лицензией модели;
 2. выполнить:
 
 ```bash
@@ -64,7 +61,7 @@ npm run quickstart:full
 - запускает web UI
 - запускает локальный inference-service на `127.0.0.1:8001`
 
-Если checkpoint отсутствует, full mode честно не поднимет inference и останется в demo-парадигме.
+Команда скачивает зафиксированные официальные веса SAM 3 и проверяет SHA-256. Если доступ ещё не настроен, остаётся demo mode: выполните `.venv-cv/bin/hf auth login --force` самостоятельно и повторите `npm run quickstart:full`. Токен не отправляйте в чат и не коммитьте. Готовый официальный snapshot можно указать через `SAM3_MODEL_PATH`.
 
 ## Что реализовано
 
@@ -74,8 +71,8 @@ npm run quickstart:full
 - структурированная подсказка формулировки по типу дефекта
 - `V2`: AI-подсказка типа дефекта с обязательным подтверждением человеком
 - визуальная подсветка дефекта поверх фото и внутри акта
-- `Grounded SAM 2`: уточнение mask-overlay внутри seed-зон от `DeepCrack` или `Grounding DINO`
-- `Demo Mode`: заранее подготовленные фото и сохранённые SAM 2 маски для публичного показа без локального Python inference
+- `SAM 3`: сегментация трещин по текстовому запросу, все возвращённые области и явная обработка пустого результата
+- `Demo Mode`: подготовленные фото и сохранённые маски с исходным именем модели, включая исторические результаты SAM 2, без локального Python inference
 - генерация HTML-акта из сохранённого snapshot сессии
 - два режима хранения:
   - локальный filesystem для разработки
@@ -113,11 +110,14 @@ python3.11 -m venv .venv-cv
 .venv-cv/bin/pip install -r services/cv_inference/requirements.txt
 ```
 
-Checkpoint `DeepCrack` не хранится в git. Для локального запуска положите файл весов сюда:
+Веса SAM 3 требуют одобренного доступа и не хранятся в Git или публичном пакете Space. После получения доступа:
 
-```text
-services/cv_inference/models/deepcrack_ct260.pth
+```bash
+.venv-cv/bin/hf auth login --force
+.venv-cv/bin/python -B scripts/prepare-sam3.py
 ```
+
+Используется локальный read-токен и ревизия из `services/cv_inference/sam3-model.json`. Необязательному адаптеру DeepCrack по-прежнему нужен отдельный checkpoint `services/cv_inference/models/deepcrack_ct260.pth`; SAM 3 от него не зависит.
 
 ```bash
 npm run cv:start
@@ -127,7 +127,7 @@ npm run cv:start
 
 - `DeepCrack`
 - `Grounding DINO`
-- `Grounded SAM 2`
+- `SAM 3` (по умолчанию)
 - `Florence-2`
 
 Опциональные переменные:
@@ -135,7 +135,7 @@ npm run cv:start
 ```bash
 CV_INFERENCE_MODE=external
 CV_INFERENCE_URL=http://127.0.0.1:8001
-CV_MODEL_DEFAULT=grounded-sam2
+CV_MODEL_DEFAULT=sam3
 FLORENCE2_MODEL_ID=florence-community/Florence-2-base-ft
 ```
 
@@ -151,11 +151,11 @@ FLORENCE2_MODEL_ID=florence-community/Florence-2-base-ft
 
 - `DeepCrack` — реальная crack-segmentation модель
 - `Grounding DINO` — реальный zero-shot detector с более жёсткой фильтрацией и дедупликацией box-ов
-- `Grounded SAM 2` — pipeline `seed -> SAM 2`, который сначала использует зоны `DeepCrack`, а если их нет, откатывается на `Grounding DINO`
+- `SAM 3` (по умолчанию) — предобученная сегментация по текстовому запросу; исходные scores, без ручной дорисовки или дополнительного сглаживания
 - `Florence-2` — реальная foundation-модель, подключённая в тот же inference-service
 - `Universal CV Adapter` — унифицированный контракт под любую внешнюю предобученную модель
 
-После загрузки одного фото приложение сравнивает все подключённые модели на одном и том же изображении. Для новых фото и для `Переанализировать` у сохранённого дефекта используется выбранная основная модель.
+После загрузки фото запускается только выбранная модель (по умолчанию SAM 3). При переключении модели это же фото анализируется по запросу; готовые результаты сохраняются рядом для сравнения. Другое фото очищает сравнение. Выбранная модель используется и для `Переанализировать` сохранённый дефект; вспомогательные модели автоматически не загружаются.
 
 ## Воспроизводимый CV benchmark
 
@@ -178,6 +178,8 @@ npm run benchmark:cv
 ```bash
 npm run benchmark:cv:enforce
 ```
+
+По умолчанию benchmark запускает SAM 3 против неизменённых исторических reference; строгий similarity-gate может не пройти из-за смены модели. Это не причина снижать пороги ради зелёного результата.
 
 Текущие reference-маски являются одобренными результатами прежнего Grounded SAM 2
 inference. Они позволяют обнаруживать регрессии, но **не являются независимой ручной
@@ -210,17 +212,17 @@ Workflow публикации нового удачного примера:
 - публичное `Своё фото` = новый облачный анализ, с согласием и ограничениями GPU-квоты
 - локальный full mode = реальный inference на пользовательских фото
 
-По умолчанию `DeepCrack`, `Grounding DINO`, `Grounded SAM 2` и `Florence-2` могут работать через один локальный endpoint `http://127.0.0.1:8001`. Если нужно развести модели по разным сервисам, задайте отдельные endpoint'ы:
+По умолчанию `SAM 3`, `DeepCrack`, `Grounding DINO` и `Florence-2` могут работать через один локальный endpoint `http://127.0.0.1:8001`. Если нужно развести модели по разным сервисам, задайте отдельные endpoint'ы:
 
 ```bash
 DEEPCRACK_INFERENCE_URL=http://127.0.0.1:8001
 GROUNDING_DINO_INFERENCE_URL=http://127.0.0.1:8001
-GROUNDED_SAM2_INFERENCE_URL=http://127.0.0.1:8001
+SAM3_INFERENCE_URL=http://127.0.0.1:8001
 FLORENCE2_INFERENCE_URL=http://127.0.0.1:8001
 GENERAL_CV_INFERENCE_URL=http://127.0.0.1:8004
 ```
 
-Для `Grounding DINO` дополнительно доступны жёсткие пороги post-processing через env, например `GROUNDING_DINO_MIN_CONFIDENCE` и `GROUNDING_DINO_MAX_BOXES_PER_TYPE`. Для `Grounded SAM 2` можно менять `SAM2_MODEL_ID`, `GROUNDED_SAM2_MAX_BOXES` и другие `SAM2_*` переменные.
+Для `Grounding DINO` дополнительно доступны жёсткие пороги post-processing через env, например `GROUNDING_DINO_MIN_CONFIDENCE` и `GROUNDING_DINO_MAX_BOXES_PER_TYPE`. SAM 3 использует зафиксированную ревизию, фиксированный запрос и пороги score/mask по 0.5. Локально по умолчанию используется CPU и четыре потока (`CV_CPU_THREADS=1..8`); CUDA выбирается явно на подготовленном сервере. `SAM3_MODEL_PATH` задаёт официальный snapshot с обязательной проверкой SHA-256 весов. Запросы запуска `grounded-sam2` отклоняются. Старые `GROUNDED_SAM2_INFERENCE_URL` / `SAM2_*` больше не используются и не перенаправляют анализ на SAM 3.
 
 ## Проверка
 

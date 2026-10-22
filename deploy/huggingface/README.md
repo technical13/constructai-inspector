@@ -4,21 +4,20 @@ sdk: gradio
 sdk_version: 6.30.0
 python_version: 3.12.12
 app_file: app.py
-short_description: Live crack segmentation with DeepCrack and SAM 2
+short_description: Live text-prompted crack segmentation with SAM 3
 tags:
   - computer-vision
   - crack-segmentation
-  - sam2
+  - sam3
 models:
-  - facebook/sam2.1-hiera-tiny
-  - IDEA-Research/grounding-dino-base
+  - facebook/sam3
 ---
 
 # ConstructAI Inspector CV
 
 Live inference companion for [ConstructAI Inspector](https://github.com/technical13/constructai-inspector).
-Upload a new concrete-surface photo to run the pretrained DeepCrack detector and
-SAM 2 mask refinement. Grounding DINO provides fallback seed regions. Results
+Upload a new concrete-surface photo to run pretrained Meta SAM 3 with the fixed
+prompt `crack in concrete`, without a separate detector. Results
 are computed on demand; this Space does not replay saved demo masks.
 
 The main [web application](https://constructai-inspector.vercel.app/) remains a
@@ -41,8 +40,8 @@ by publishing this Space.
 ## API
 
 The queued Gradio endpoint is `/infer`. Input is one JSON object containing
-`imageDataUrl` (base64 PNG/JPEG/WebP) and optional `modelKey` (`grounded-sam2` or
-`deepcrack`). The output is `{ "suggestion": ... }`, compatible with the web
+`imageDataUrl` (base64 PNG/JPEG/WebP) and optional `modelKey` (`sam3`).
+Retired model keys are rejected, not aliased. The output is `{ "suggestion": ... }`, compatible with the web
 application's inference contract. All suggestions remain `pending_review`.
 
 Use the Space's **Use via API** documentation for the exact endpoint URL.
@@ -51,7 +50,17 @@ quota; they do not receive a fresh free allowance for every website visitor.
 
 ## Reproducibility
 
-`models.json` pins the SAM 2 and Grounding DINO revisions and DeepCrack checkpoint
-SHA-256. `build-info.json` records the source revision and artifact hashes.
+`models.json` pins the SAM 3 revision and weights SHA-256.
+`build-info.json` records the source revision and artifact hashes.
 The models are pretrained third-party models, not an independently validated
 construction-safety system.
+
+## Gated Weights
+
+The Space owner must first obtain access to [facebook/sam3](https://huggingface.co/facebook/sam3)
+and follow the [Meta SAM license](https://huggingface.co/facebook/sam3/blob/main/LICENSE).
+Set `HF_TOKEN` only as a Space **secret**, with read access to approved public
+gated repositories. The model is downloaded and its checksum verified at startup.
+Weights and credentials are never bundled in this public source package.
+This secret is separate from the Vercel token used to call the queued API.
+No visitor needs a Hugging Face token; visitors share the configured server quota.

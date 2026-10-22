@@ -20,6 +20,8 @@
 16. The public Vercel preview cannot read or mutate workspace projects, sessions, defects, media, reports, or the demo library. It never opens a database connection.
 17. Public live inference requires explicit upload consent, one supported model, bounded raster payloads, verified input provenance, and matching mask dimensions. No result is auto-accepted.
 18. Switching photo or mode invalidates in-flight results. A failed live request never becomes a precomputed demo result implicitly.
+19. Retiring a model removes execution, not saved provenance. Historical SAM 2 records/masks are never renamed to SAM 3; explicit retired-key requests fail instead of executing another model.
+20. SAM 3 weights match the canonical pinned SHA-256. Empty results remain empty, all nonempty instance masks are unioned, native scores are not calibrated or rounded, and cloud provenance must match the expected revision/hash.
 
 ## State Mutation Discipline
 

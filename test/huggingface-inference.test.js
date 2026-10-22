@@ -31,7 +31,7 @@ function streamResponse(parts) {
 
 function request(fetchImpl, options = {}) {
   return requestInference(
-    { endpointUrl: "https://cv.example", imageDataUrl, modelKey: "grounded-sam2" },
+    { endpointUrl: "https://cv.example", imageDataUrl, modelKey: "sam3" },
     { fetchImpl, transport: "gradio", timeoutMs: 1000, token: "", ...options }
   )
 }
@@ -52,7 +52,7 @@ test("Gradio transport submits exactly one job and returns only its completed re
   assert.equal(calls[0].url, "https://cv.example/gradio_api/call/infer")
   assert.equal(calls[1].url, "https://cv.example/gradio_api/call/infer/job_123")
   assert.deepEqual(JSON.parse(calls[0].options.body), {
-    data: [{ imageDataUrl, modelKey: "grounded-sam2" }]
+    data: [{ imageDataUrl, modelKey: "sam3" }]
   })
   assert.equal(calls[0].options.signal, calls[1].options.signal)
   for (const call of calls) {

@@ -1,5 +1,20 @@
 # Decisions
 
+## 2026-10-21: SAM 3 Primary, SAM 2 Execution Retired
+
+- Risk: HIGH. A small real CPU A/B comparison motivated choosing pretrained
+  Meta SAM 3 for the default crack-mask workflow; it is not an accuracy claim.
+- Remove the SAM 2 adapter/seed plumbing and cloud weights bundle rather than
+  leaving an inactive implementation. Keep independent auxiliary local adapters.
+- Preserve historical model keys, demo masks, saved reviews and report snapshots.
+  Reject retired execution keys; never silently alias them or relabel old output.
+- Download official gated SAM 3 weights separately with checksum verification.
+  Use a Space secret for gated reads; package code only, never weights/tokens.
+- Prepare source/configuration locally. GitHub publication, coordinated HF/Vercel
+  release and any hosted-resource deletion require separate authorization.
+- Keep historical benchmark references/gates unchanged apart from selecting the
+  new execution model. Cross-model drift is not independent segmentation accuracy.
+
 ## 2026-10-20: Stateless Public Live Preview
 
 - Risk: HIGH. Add a separate small public interface, not a tenant/auth rewrite of

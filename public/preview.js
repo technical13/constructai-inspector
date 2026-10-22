@@ -54,7 +54,7 @@ function render() {
   $("original-button").textContent = original ? t.mask : t.original
   $("original-button").setAttribute("aria-pressed", String(original))
   $("result-origin").textContent = suggestion
-    ? describePreviewResult(suggestion, locale).provenance : "DeepCrack + SAM 2"
+    ? describePreviewResult(suggestion, locale).provenance : "SAM 3"
   if (suggestion) {
     const result = describePreviewResult(suggestion, locale)
     $("result-title").textContent = result.title

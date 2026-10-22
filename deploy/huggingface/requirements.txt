@@ -1,6 +1,5 @@
 # Spaces mounts this file alone under /tmp during dependency installation.
 fastapi==0.135.3
-gdown==6.0.0
 numpy==2.4.4
 pillow==12.2.0
 # Hugging Face injects gradio[mcp,oauth], whose MCP extra requires <=2.12.5.

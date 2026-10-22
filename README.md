@@ -6,7 +6,9 @@ ConstructAI Inspector is a mobile-first construction inspection software prototy
 
 **Public prototype:** [constructai-inspector.vercel.app](https://constructai-inspector.vercel.app/)
 
-Core capabilities include project and inspection session setup, photo-based defect records, human review of suggested defect types, comparison of CV models, crack-mask visualization, and HTML inspection reports. The crack-mask pipeline uses `DeepCrack/Grounding DINO seed -> SAM 2 refine`.
+Core capabilities include project and inspection session setup, photo-based defect records, human review of suggested defect types, comparison of CV models, crack-mask visualization, and HTML inspection reports. The default crack-mask model in this source revision is pretrained Meta `SAM 3`, using the fixed text prompt `crack in concrete`, without a separate detector.
+
+This source change does not itself update the public deployment. Release the SAM 3 Space and web backend together using the [migration checklist](docs/sam3-migration.md). Historical demo masks retain their original SAM 2 provenance; they are not relabeled as SAM 3.
 
 The prototype supports documentation and human review; it does not provide a validated structural safety assessment.
 
@@ -50,12 +52,7 @@ This is sufficient for a quick walkthrough without CV models.
 
 To reproduce local inference on your own photos:
 
-1. Place the `DeepCrack` checkpoint at:
-
-```text
-services/cv_inference/models/deepcrack_ct260.pth
-```
-
+1. Obtain access to [facebook/sam3](https://huggingface.co/facebook/sam3) and review the model's license yourself.
 2. Run:
 
 ```bash
@@ -70,7 +67,7 @@ This command:
 - Starts the web UI.
 - Starts the local inference service at `127.0.0.1:8001`.
 
-If the checkpoint is missing, full local mode does not start inference; the application remains in demo mode.
+The command downloads the pinned official SAM 3 weights and verifies their SHA-256. If gated access is not configured yet, it stays in demo mode: run `.venv-cv/bin/hf auth login --force` yourself, then repeat `npm run quickstart:full`. Never paste a token into chat or commit it. An existing official snapshot can be selected with `SAM3_MODEL_PATH`.
 
 ## Implemented Features
 
@@ -80,8 +77,8 @@ If the checkpoint is missing, full local mode does not start inference; the appl
 - Structured wording suggestions by defect type.
 - `V2`: AI suggestions for defect types, requiring explicit human review.
 - Defect overlays on photos and in reports.
-- `Grounded SAM 2`: mask-overlay refinement within seed regions from `DeepCrack` or `Grounding DINO`.
-- `Demo Mode`: curated photos and saved SAM 2 masks for public display without local Python inference.
+- `SAM 3`: text-prompted crack segmentation, including multiple returned regions and explicit empty results.
+- `Demo Mode`: curated photos and saved masks with their original model labels, including historical SAM 2 results, without local Python inference.
 - HTML report generation from a saved session snapshot.
 - Local filesystem storage for development.
 - Optional `Postgres` storage backend; not used by the stateless public preview.
@@ -118,11 +115,14 @@ python3.11 -m venv .venv-cv
 .venv-cv/bin/pip install -r services/cv_inference/requirements.txt
 ```
 
-The `DeepCrack` checkpoint is not stored in git. For local inference, place the weights file at:
+SAM 3 weights are gated and are not stored in Git or bundled in a public Space source upload. After obtaining model access:
 
-```text
-services/cv_inference/models/deepcrack_ct260.pth
+```bash
+.venv-cv/bin/hf auth login --force
+.venv-cv/bin/python -B scripts/prepare-sam3.py
 ```
+
+This uses a local read token and the pinned revision in `services/cv_inference/sam3-model.json`. Optional DeepCrack inference still requires its separate checkpoint at `services/cv_inference/models/deepcrack_ct260.pth`; SAM 3 does not use it.
 
 ```bash
 npm run cv:start
@@ -132,7 +132,7 @@ By default, the web application connects to `http://127.0.0.1:8001`. The service
 
 - `DeepCrack`
 - `Grounding DINO`
-- `Grounded SAM 2`
+- `SAM 3` (default)
 - `Florence-2`
 
 Optional environment variables:
@@ -140,7 +140,7 @@ Optional environment variables:
 ```bash
 CV_INFERENCE_MODE=external
 CV_INFERENCE_URL=http://127.0.0.1:8001
-CV_MODEL_DEFAULT=grounded-sam2
+CV_MODEL_DEFAULT=sam3
 FLORENCE2_MODEL_ID=florence-community/Florence-2-base-ft
 ```
 
@@ -156,11 +156,11 @@ The UI provides an explicit AI model selector:
 
 - `DeepCrack`: a crack-segmentation model.
 - `Grounding DINO`: a zero-shot detector with stricter filtering and bounding-box deduplication.
-- `Grounded SAM 2`: a `seed -> SAM 2` pipeline that first uses `DeepCrack` regions and falls back to `Grounding DINO` if no seed regions are found.
+- `SAM 3` (default): pretrained text-prompted segmentation; raw scores, no hand-drawn contour or extra smoothing.
 - `Florence-2`: a foundation model connected to the same inference service.
 - `Universal CV Adapter`: a unified integration contract for external pretrained models.
 
-After a photo is uploaded, the application compares all configured models on the same image. The selected primary model is used for new photos and for the `Reanalyze` action on a saved defect.
+After a photo is uploaded, only the selected model runs (SAM 3 by default). Selecting another model analyzes the same photo on demand and retains completed results for side-by-side comparison. A different photo clears these comparisons. The selected model is also used for `Reanalyze` on a saved defect; auxiliary models are not loaded automatically.
 
 ## Reproducible CV Benchmark
 
@@ -182,7 +182,7 @@ The command calculates `Dice`, `IoU`, precision, recall, and defect-type accurac
 npm run benchmark:cv:enforce
 ```
 
-The current reference masks are approved outputs from earlier Grounded SAM 2 inference runs. They support regression detection, but **are not independent human annotations and do not establish model accuracy**. Comparative accuracy claims require a separate set of human-annotated masks.
+The current reference masks are approved outputs from earlier Grounded SAM 2 inference runs. The default benchmark now runs SAM 3 against those unchanged historical references; a strict gate may fail because the model changed. They support explicit drift comparison, but **are not independent human annotations and do not establish model accuracy**. Comparative accuracy claims require a separate set of human-annotated masks.
 
 ## Demo Mode
 
@@ -210,17 +210,17 @@ The distinction is essential for transparent publication:
 - Public `Try your photo`: new cloud inference, subject to GPU quotas and explicit consent.
 - Full local mode: real inference on user-supplied photos.
 
-By default, `DeepCrack`, `Grounding DINO`, `Grounded SAM 2`, and `Florence-2` can use the same local endpoint, `http://127.0.0.1:8001`. To run models through separate services, configure individual endpoints:
+By default, `SAM 3`, `DeepCrack`, `Grounding DINO`, and `Florence-2` can use the same local endpoint, `http://127.0.0.1:8001`. To run models through separate services, configure individual endpoints:
 
 ```bash
 DEEPCRACK_INFERENCE_URL=http://127.0.0.1:8001
 GROUNDING_DINO_INFERENCE_URL=http://127.0.0.1:8001
-GROUNDED_SAM2_INFERENCE_URL=http://127.0.0.1:8001
+SAM3_INFERENCE_URL=http://127.0.0.1:8001
 FLORENCE2_INFERENCE_URL=http://127.0.0.1:8001
 GENERAL_CV_INFERENCE_URL=http://127.0.0.1:8004
 ```
 
-`Grounding DINO` also exposes stricter post-processing thresholds through environment variables such as `GROUNDING_DINO_MIN_CONFIDENCE` and `GROUNDING_DINO_MAX_BOXES_PER_TYPE`. For `Grounded SAM 2`, you can configure `SAM2_MODEL_ID`, `GROUNDED_SAM2_MAX_BOXES`, and other `SAM2_*` variables.
+`Grounding DINO` also exposes stricter post-processing thresholds through environment variables such as `GROUNDING_DINO_MIN_CONFIDENCE` and `GROUNDING_DINO_MAX_BOXES_PER_TYPE`. SAM 3 uses a pinned revision, fixed prompt and score/mask thresholds of 0.5. Local CPU is the default (four threads; `CV_CPU_THREADS=1..8`); CUDA can be selected explicitly for a configured host. `SAM3_MODEL_PATH` selects an official local snapshot, whose weights checksum is still verified. Retired `grounded-sam2` execution requests are rejected. Remove old `GROUNDED_SAM2_INFERENCE_URL` / `SAM2_*` configuration; they do not redirect to SAM 3.
 
 ## Verification
 

@@ -15,6 +15,8 @@ The repository is intentionally preserved as an existing web runtime rather than
 - AI orchestration: `src/inference.js`
 - Bounded inference transport: `src/inference-gateway.js`
 - External CV service: `services/cv_inference/app.py`
+- Primary text-prompted segmentation: `services/cv_inference/sam3_service.py`
+- Canonical pinned model identity: `services/cv_inference/sam3-model.json`
 - CV model registry: `services/cv_inference/model_registry.py`
 - Reproducible CV benchmark: `benchmarks/cv/manifest.json`, `scripts/cv_benchmark.py`
 - Optional ZeroGPU deployment: `deploy/huggingface/`, `docs/huggingface.md`
@@ -61,6 +63,11 @@ The application must remain operational when the CV service is absent. The deter
 The Node gateway and Python registry are both bounded. The duplicate limit is deliberate:
 the gateway protects product traffic, while the registry protects the ML runtime from
 direct callers and accidental parallel model loading.
+
+SAM 3 is primary and independent of the auxiliary local adapters. SAM 2 inference
+code is retired; historical SAM 2 model keys remain valid saved provenance, not
+executable aliases. The cloud package contains only SAM 3 code and downloads
+gated weights using a server-side Space secret. See `docs/sam3-migration.md`.
 
 The optional Gradio transport uses the same bounded gateway and suggestion contract.
 It submits one job and reads the completed SSE result; it never silently changes
