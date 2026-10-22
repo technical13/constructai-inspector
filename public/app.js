@@ -701,7 +701,9 @@ function localizeRuntimeText(message) {
       ["The defect changed. Reload before saving it.", "Дефект изменился. Обновите запись перед сохранением."],
       ["The defect changed during analysis. Reload and analyze again.", "Дефект изменился во время анализа. Обновите запись и повторите анализ."],
       ["Live AI analysis is disabled. Use a precomputed demo or manual entry.", "AI-анализ отключён. Выберите сохранённое демо или ручной ввод."],
-      ["Live analysis is unavailable. Use a precomputed demo or manual entry.", "AI-анализ недоступен. Выберите сохранённое демо или ручной ввод."]
+      ["Live analysis is unavailable. Use a precomputed demo or manual entry.", "AI-анализ недоступен. Выберите сохранённое демо или ручной ввод."],
+      ["SAM 3 returned a provisional crack mask.", "SAM 3 построил предварительную маску трещины."],
+      ["SAM 3 returned no crack mask above the configured thresholds.", "SAM 3 не вернул маску трещины выше заданных порогов."]
     ]).get(message) || message
   }
 
@@ -762,7 +764,6 @@ function localizeRuntimeText(message) {
     ["Demo-библиотека доступна только для чтения.", "The demo library is read-only."],
     ["Не указан demo-сценарий для удаления.", "No demo scenario was specified for deletion."],
     ["У demo-сценария некорректный путь к изображению.", "The demo scenario image path is invalid."],
-    ["Демо-фото обработано сохранённой маской Grounded SAM 2.", "Demo photo processed with the saved Grounded SAM 2 mask."],
     ["Нельзя сохранить demo без изображения.", "Cannot save a demo without an image."],
     ["Нельзя сохранить demo без AI-результата.", "Cannot save a demo without an AI result."],
     ["Для demo нужен визуальный результат модели.", "A visual model result is required for a demo."],
@@ -794,7 +795,7 @@ function localizeRuntimeText(message) {
     ["CV inference service вернул невалидный JSON.", "CV inference service returned invalid JSON."],
     ["CV inference service недоступен.", "CV inference service is unavailable."],
     ["Очередь CV inference заполнена. Дождитесь завершения текущего анализа.", "The inference queue is full. Wait for the current analysis to finish."],
-    ["CV inference service недоступен. Запустите DeepCrack adapter или переключите режим AI.", "CV inference service is unavailable. Start the DeepCrack adapter or switch the AI mode."],
+    ["CV inference service недоступен. Запустите CV-service или переключите режим AI.", "CV inference service is unavailable. Start the CV service or switch the AI mode."],
     ["Нет подключённых AI-моделей для сравнения. Подключите хотя бы один endpoint.", "No connected AI models are available for comparison. Connect at least one endpoint."],
     ["Ни одна AI-модель не смогла обработать изображение.", "No AI model was able to process the image."],
     ["Неизвестная ошибка AI.", "Unknown AI error."],
@@ -804,7 +805,7 @@ function localizeRuntimeText(message) {
     ["Endpoint не подключён", "Endpoint not connected"],
     ["Сегментация трещин в бетоне.", "Crack segmentation for concrete."],
     ["Zero-shot detector визуальных зон.", "Zero-shot detector for visual regions."],
-    ["Детектор + SAM 2 для точной маски.", "Detector + SAM 2 for a precise mask."],
+    ["Сегментация трещин по текстовому запросу.", "Text-prompted crack segmentation."],
     ["Модель общего visual reasoning.", "General visual reasoning model."],
     ["Контракт для внешней CV-модели.", "Contract for an external CV model."]
   ])
@@ -1360,13 +1361,13 @@ function getSuccessfulComparisonResults() {
 
 function getPrimarySuggestionFromResults() {
   const successful = getSuccessfulComparisonResults()
-  const groundedSam2 = successful.find(
-    (item) => item.modelKey === "grounded-sam2" && hasMaskVisualEvidence(item.suggestion)
+  const sam3 = successful.find(
+    (item) => item.modelKey === "sam3" && hasMaskVisualEvidence(item.suggestion)
   )
 
   return (
-    groundedSam2?.suggestion ||
     successful.find((item) => item.modelKey === state.selectedCvModelKey)?.suggestion ||
+    sam3?.suggestion ||
     successful[0]?.suggestion ||
     null
   )
@@ -1387,12 +1388,7 @@ function hasMaskVisualEvidence(suggestion) {
 }
 
 function getHeroPreviewSuggestion() {
-  const successful = getSuccessfulComparisonResults()
-  const groundedSam2 = successful.find(
-    (item) => item.modelKey === "grounded-sam2" && hasMaskVisualEvidence(item.suggestion)
-  )
-
-  return groundedSam2?.suggestion || state.pendingSuggestion
+  return getPrimarySuggestionFromResults() || state.pendingSuggestion
 }
 
 function renderComparisonCards() {
@@ -1522,8 +1518,8 @@ function renderPhotoPreview() {
     footerText =
       visualEvidence?.renderMode === "mask"
         ? state.locale === "en"
-          ? "Grounded SAM 2 mask"
-          : "Маска Grounded SAM 2"
+          ? `${heroSuggestion?.modelLabel || "Model"} mask`
+          : `Маска ${heroSuggestion?.modelLabel || "модели"}`
         : state.locale === "en"
           ? "Model attention zone"
           : "Зона внимания модели"
@@ -1619,7 +1615,7 @@ function renderSuggestionPanel() {
     elements.suggestionContent.innerHTML =
       `<p class="inline-note">${escapeHtml(state.activeDemoScenarioId
         ? state.locale === "en" ? "Loading the saved demo result." : "Загрузка сохранённого демо-результата."
-        : state.locale === "en" ? "Comparing available models on the same photo." : "Сравнение доступных моделей на одном фото.")}</p>`
+        : state.locale === "en" ? "Analyzing with the selected model." : "Анализ выбранной моделью.")}</p>`
     elements.acceptSuggestionButton.disabled = true
     elements.dismissSuggestionButton.disabled = true
     renderDemoSavePanel()
@@ -1975,22 +1971,24 @@ function renderAll() {
   renderStepChrome()
 }
 
-async function requestSuggestionForImage(imageDataUrl) {
+async function requestSuggestionForImage(imageDataUrl, { preserveResults = false } = {}) {
   state.aiDecision = "pending_review"
   state.suggestionRequestId += 1
   const requestId = state.suggestionRequestId
-  const activeModelKeys = state.cvModels
-    .filter((item) => item.configured)
-    .map((item) => item.key)
+  const selectedModel = getSelectedCvModel()
+  const previousResults = preserveResults
+    ? getSuccessfulComparisonResults().filter((item) => item.suggestion.analysisMode !== "precomputed_demo")
+    : []
+  state.activeDemoScenarioId = ""
 
   state.suggestionStatus = "loading"
   state.suggestionError = ""
   state.pendingSuggestion = null
-  state.comparisonResults = []
+  state.comparisonResults = previousResults
   resetDemoSaveState()
   renderSuggestionPanel()
 
-  if (activeModelKeys.length === 0) {
+  if (!selectedModel?.configured) {
     state.suggestionStatus = "error"
     state.suggestionError = "Live analysis is unavailable. Use a precomputed demo or manual entry."
     renderSuggestionPanel()
@@ -1998,11 +1996,11 @@ async function requestSuggestionForImage(imageDataUrl) {
   }
 
   try {
-    const { results } = await api("/api/ai/compare", {
+    const { suggestion } = await api("/api/ai/suggest", {
       method: "POST",
       body: JSON.stringify({
         imageDataUrl,
-        modelKeys: activeModelKeys
+        modelKey: selectedModel.key
       })
     })
 
@@ -2010,7 +2008,10 @@ async function requestSuggestionForImage(imageDataUrl) {
       return
     }
 
-    state.comparisonResults = Array.isArray(results) ? results : []
+    state.comparisonResults = [
+      ...previousResults.filter((item) => item.modelKey !== selectedModel.key),
+      { modelKey: selectedModel.key, modelLabel: selectedModel.label, ok: true, suggestion }
+    ]
     state.pendingSuggestion = getPrimarySuggestionFromResults()
 
     if (!state.pendingSuggestion) {
@@ -2025,7 +2026,7 @@ async function requestSuggestionForImage(imageDataUrl) {
     }
 
     state.pendingSuggestion = null
-    state.comparisonResults = []
+    state.comparisonResults = previousResults
     state.suggestionStatus = "error"
     state.suggestionError = error.message
     renderSuggestionPanel()
@@ -2123,12 +2124,14 @@ async function applySelectedModel(modelKey) {
   if (matchingSuggestion) {
     state.aiDecision = "pending_review"
     state.pendingSuggestion = matchingSuggestion.suggestion
+    state.suggestionStatus = "ready"
+    state.suggestionError = ""
     renderSuggestionPanel()
     return
   }
 
   if (state.pendingImageDataUrl) {
-    await requestSuggestionForImage(state.pendingImageDataUrl)
+    await requestSuggestionForImage(state.pendingImageDataUrl, { preserveResults: true })
   }
 }
 
@@ -2201,8 +2204,8 @@ async function applyDemoScenario(scenarioId) {
   state.pendingSuggestion = suggestion
   state.comparisonResults = [
     {
-      modelKey: suggestion.modelKey || "grounded-sam2",
-      modelLabel: suggestion.modelLabel || "Grounded SAM 2",
+      modelKey: suggestion.modelKey || "historical-demo",
+      modelLabel: suggestion.modelLabel || (state.locale === "en" ? "Saved model" : "Сохранённая модель"),
       ok: true,
       suggestion
     }

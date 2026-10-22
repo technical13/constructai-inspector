@@ -13,11 +13,10 @@ from transformers import (
     AutoModelForZeroShotObjectDetection,
     AutoProcessor,
     Florence2ForConditionalGeneration,
-    Sam2Model,
-    Sam2Processor,
 )
 
 from .deepcrack_model import DeepCrack
+from .sam3_service import Sam3Service
 from .cloud_contract import select_device_name
 from .model_registry import ModelBusyError, ModelRegistry, UnknownModelError
 
@@ -45,7 +44,6 @@ GROUNDING_DINO_MODEL_ID = os.getenv(
     "GROUNDING_DINO_MODEL_ID", "IDEA-Research/grounding-dino-base"
 )
 GROUNDING_DINO_MODEL_REVISION = os.getenv("GROUNDING_DINO_MODEL_REVISION") or None
-SAM2_MODEL_REVISION = os.getenv("SAM2_MODEL_REVISION") or None
 CANVAS_SIZE = 512
 MASK_THRESHOLD = float(os.getenv("DEEPCRACK_THRESHOLD", "0.85"))
 MIN_POSITIVE_PIXELS = int(os.getenv("DEEPCRACK_MIN_PIXELS", "350"))
@@ -85,14 +83,6 @@ FLORENCE2_TEXT_INPUT = os.getenv(
     "crack . spalling . honeycomb . corrosion stain . leakage . damaged edge . unfinished surface .",
 )
 FLORENCE2_MAX_BOXES = int(os.getenv("FLORENCE2_MAX_BOXES", "6"))
-SAM2_MODEL_ID = os.getenv("SAM2_MODEL_ID", "facebook/sam2.1-hiera-tiny")
-GROUNDED_SAM2_MAX_BOXES = int(os.getenv("GROUNDED_SAM2_MAX_BOXES", "2"))
-GROUNDED_SAM2_MIN_CONFIDENCE = float(os.getenv("GROUNDED_SAM2_MIN_CONFIDENCE", "0.32"))
-SAM2_MASK_THRESHOLD = float(os.getenv("SAM2_MASK_THRESHOLD", "0.0"))
-SAM2_MIN_PIXELS = int(os.getenv("SAM2_MIN_PIXELS", "80"))
-SAM2_MIN_PIXELS_DEEPCRACK_SEED = int(os.getenv("SAM2_MIN_PIXELS_DEEPCRACK_SEED", "28"))
-SAM2_MAX_AREA_RATIO = float(os.getenv("SAM2_MAX_AREA_RATIO", "0.38"))
-SAM2_EXPAND_RATIO = float(os.getenv("SAM2_EXPAND_RATIO", "0.08"))
 CV_SERVICE_MAX_CONCURRENCY = read_bounded_int(
     "CV_SERVICE_MAX_CONCURRENCY", 1, 1, 8
 )
@@ -355,25 +345,6 @@ def subset_component_by_box(component: list[tuple[int, int]], box: dict) -> list
         for point in component
         if box["top"] <= point[0] <= box["bottom"] and box["left"] <= point[1] <= box["right"]
     ]
-
-
-def sample_seed_points(points: list[dict], limit: int = 4) -> list[dict]:
-    if not isinstance(points, list) or len(points) == 0:
-        return []
-
-    if len(points) <= limit:
-        return points
-
-    sampled = []
-    for index in np.linspace(0, len(points) - 1, limit):
-        sampled.append(points[int(round(float(index)))])
-
-    deduped = []
-    for point in sampled:
-        if not deduped or deduped[-1] != point:
-            deduped.append(point)
-
-    return deduped
 
 
 def normalize_trace_points(
@@ -1197,405 +1168,12 @@ class Florence2Service:
         }
 
 
-def expand_detection_box(box: dict, width: int, height: int) -> list[float]:
-    left = float(box["x"]) * width
-    top = float(box["y"]) * height
-    right = float(box["x"] + box["width"]) * width
-    bottom = float(box["y"] + box["height"]) * height
-    expand_x = (right - left) * SAM2_EXPAND_RATIO
-    expand_y = (bottom - top) * SAM2_EXPAND_RATIO
-    left = max(0.0, left - expand_x)
-    top = max(0.0, top - expand_y)
-    right = min(float(width), right + expand_x)
-    bottom = min(float(height), bottom + expand_y)
-    return [left, top, right, bottom]
-
-
-def normalize_mask_tensor(mask_candidate) -> np.ndarray:
-    if hasattr(mask_candidate, "detach"):
-        mask_candidate = mask_candidate.detach().cpu().numpy()
-
-    mask_array = np.asarray(mask_candidate, dtype=np.float32)
-
-    while mask_array.ndim > 2:
-        mask_array = mask_array[0]
-
-    return mask_array
-
-
-def smooth_binary_mask(binary_mask: np.ndarray) -> np.ndarray:
-    mask_image = Image.fromarray(np.where(binary_mask, 255, 0).astype(np.uint8), mode="L")
-    mask_image = mask_image.filter(ImageFilter.MaxFilter(5))
-    mask_image = mask_image.filter(ImageFilter.GaussianBlur(radius=1.4))
-    return np.asarray(mask_image, dtype=np.uint8) >= 104
-
-
-def build_mask_visual_evidence(
-    binary_mask: np.ndarray,
-    image_width: int,
-    image_height: int,
-    *,
-    type_id: str,
-    prefix: str,
-    min_pixels: int = SAM2_MIN_PIXELS,
-) -> dict | None:
-    positive_pixels = int(binary_mask.sum())
-    if positive_pixels < min_pixels:
-        return None
-
-    area_ratio = positive_pixels / float(binary_mask.size)
-    if area_ratio > SAM2_MAX_AREA_RATIO:
-        return None
-
-    regions = relabel_regions(extract_component_boxes(binary_mask), type_id, prefix)
-    if len(regions) == 0:
-        return None
-
-    return {
-        "imageSpace": "normalized",
-        "renderMode": "mask",
-        "maskDataUrl": encode_rgba_mask(
-            np.where(binary_mask, 1.0, 0.0).astype(np.float32),
-            binary_mask,
-            color=(255, 240, 42),
-            min_alpha=182,
-        ),
-        "maskWidth": image_width,
-        "maskHeight": image_height,
-        "regions": regions,
-    }
-
-
-class GroundedSam2Service:
-    def __init__(self, detector: GroundingDinoService, crack_service: DeepCrackService):
-        self.device = choose_device()
-        self.dtype = choose_inference_dtype(self.device)
-        self.detector = detector
-        self.crack_service = crack_service
-        self.processor = None
-        self.model = None
-        self._load_lock = Lock()
-
-    def readiness(self) -> dict:
-        return {
-            "available": True,
-            "loaded": self.processor is not None and self.model is not None,
-            "detail": SAM2_MODEL_ID,
-        }
-
-    def ensure_loaded(self):
-        if self.processor is not None and self.model is not None:
-            return
-
-        with self._load_lock:
-            if self.processor is not None and self.model is not None:
-                return
-            processor = Sam2Processor.from_pretrained(
-                SAM2_MODEL_ID, revision=SAM2_MODEL_REVISION
-            )
-            model = Sam2Model.from_pretrained(
-                SAM2_MODEL_ID, revision=SAM2_MODEL_REVISION
-            )
-            model = model.to(self.device)
-            model.eval()
-            self.processor = processor
-            self.model = model
-
-    def segment_box(self, image: Image.Image, candidate: dict) -> dict | None:
-        self.ensure_loaded()
-        input_box = expand_detection_box(candidate, image.width, image.height)
-        processor_payload = {
-            "images": image,
-            "input_boxes": [[[input_box[0], input_box[1], input_box[2], input_box[3]]]],
-            "return_tensors": "pt",
-        }
-        seed_points = candidate.get("seedPoints")
-        if isinstance(seed_points, list) and len(seed_points) > 0:
-            processor_payload["input_points"] = [[[
-                [
-                    float(point["x"]) * image.width,
-                    float(point["y"]) * image.height,
-                ]
-                for point in seed_points
-            ]]]
-            processor_payload["input_labels"] = [[[1 for _ in seed_points]]]
-
-        inputs = self.processor(**processor_payload)
-        inputs = move_inputs_to_device(inputs, self.device, self.dtype)
-
-        with torch.no_grad():
-            outputs = self.model(**inputs, multimask_output=False)
-
-        masks = self.processor.post_process_masks(
-            outputs.pred_masks.detach().cpu(),
-            inputs["original_sizes"],
-        )[0]
-        mask_array = normalize_mask_tensor(masks)
-        binary_mask = smooth_binary_mask(mask_array > SAM2_MASK_THRESHOLD)
-        visual_evidence = build_mask_visual_evidence(
-            binary_mask,
-            image.width,
-            image.height,
-            type_id=candidate["mappedType"],
-            prefix="grounded-sam2-region",
-            min_pixels=(
-                SAM2_MIN_PIXELS_DEEPCRACK_SEED
-                if candidate.get("source") == "deepcrack"
-                else SAM2_MIN_PIXELS
-            ),
-        )
-
-        if not visual_evidence:
-            return None
-
-        return {
-            "candidate": candidate,
-            "visualEvidence": visual_evidence,
-            "positivePixels": int(binary_mask.sum()),
-            "binaryMask": binary_mask,
-        }
-
-    def region_to_candidate(self, region: dict, index: int) -> dict | None:
-        kind = str(region.get("kind") or "").strip().lower()
-        confidence = clamp_confidence(region.get("confidence", 0.52))
-        source = "deepcrack"
-
-        if kind == "box":
-            x = max(0.0, min(1.0, float(region.get("x", 0.0))))
-            y = max(0.0, min(1.0, float(region.get("y", 0.0))))
-            width = max(0.0, min(1.0 - x, float(region.get("width", 0.0))))
-            height = max(0.0, min(1.0 - y, float(region.get("height", 0.0))))
-            if width <= 0 or height <= 0:
-                return None
-            return {
-                "id": f"deepcrack-seed-{index}",
-                "kind": "box",
-                "label": get_defect_type_label("crack"),
-                "rawLabel": f"DeepCrack region {index}",
-                "mappedType": "crack",
-                "source": source,
-                "confidence": confidence,
-                "x": round(x, 4),
-                "y": round(y, 4),
-                "width": round(width, 4),
-                "height": round(height, 4),
-            }
-
-        points = region.get("points")
-        if not isinstance(points, list) or len(points) < 2:
-            return None
-
-        xs = []
-        ys = []
-        for point in points:
-            try:
-                xs.append(max(0.0, min(1.0, float(point["x"]))))
-                ys.append(max(0.0, min(1.0, float(point["y"]))))
-            except Exception:
-                continue
-
-        if len(xs) < 2 or len(ys) < 2:
-            return None
-
-        left = min(xs)
-        top = min(ys)
-        right = max(xs)
-        bottom = max(ys)
-        width = max(0.03, right - left)
-        height = max(0.03, bottom - top)
-        left = max(0.0, min(1.0 - width, left))
-        top = max(0.0, min(1.0 - height, top))
-
-        return {
-            "id": f"deepcrack-seed-{index}",
-            "kind": "box",
-            "label": get_defect_type_label("crack"),
-            "rawLabel": f"DeepCrack region {index}",
-            "mappedType": "crack",
-            "source": source,
-            "confidence": confidence,
-            "x": round(left, 4),
-            "y": round(top, 4),
-            "width": round(width, 4),
-            "height": round(height, 4),
-            "seedPoints": sample_seed_points(
-                [
-                    {
-                        "x": max(0.0, min(1.0, float(point["x"]))),
-                        "y": max(0.0, min(1.0, float(point["y"]))),
-                    }
-                    for point in points
-                ]
-            ),
-        }
-
-    def get_deepcrack_candidates(self, image_data_url: str) -> list[dict]:
-        try:
-            suggestion = self.crack_service.infer(image_data_url)
-        except FileNotFoundError:
-            return []
-        if suggestion.get("suggestedType") != "crack":
-            return []
-
-        visual_evidence = suggestion.get("visualEvidence") or {}
-        regions = visual_evidence.get("regions")
-        if not isinstance(regions, list) or len(regions) == 0:
-            return []
-
-        candidates = []
-        for index, region in enumerate(regions, start=1):
-            candidate = self.region_to_candidate(region, index)
-            if candidate is not None:
-                candidates.append(candidate)
-
-        return candidates[: max(1, GROUNDED_SAM2_MAX_BOXES)]
-
-    def infer(self, image_data_url: str):
-        image = parse_image_data_url(image_data_url)
-        deepcrack_candidates = self.get_deepcrack_candidates(image_data_url)
-        detection_source = "deepcrack"
-        ranked = deepcrack_candidates
-
-        if len(ranked) == 0:
-            ranked = self.detector.detect_candidates(image)
-            detection_source = "grounding-dino"
-
-        if len(ranked) == 0:
-            return {
-                "source": "grounded-sam2",
-                "sourceLabel": "Grounded SAM 2",
-                "modelKey": "grounded-sam2",
-                "modelLabel": "Grounded SAM 2",
-                "modelVersion": f"{GROUNDING_DINO_MODEL_ID} + {SAM2_MODEL_ID}",
-                "status": "pending_review",
-                "suggestedType": "other",
-                "confidence": 0.16,
-                "rationale": "Детектор не нашёл область, которую можно передать в SAM 2 для уточнения контура.",
-                "evidence": {
-                    "detector": detection_source,
-                    "samModel": SAM2_MODEL_ID,
-                },
-                "visualEvidence": None,
-            }
-
-        if detection_source == "deepcrack":
-            selected_candidates = ranked[:GROUNDED_SAM2_MAX_BOXES]
-        else:
-            prioritized = sorted(
-                ranked,
-                key=lambda item: (
-                    item["mappedType"] != "crack",
-                    -item["confidence"],
-                ),
-            )
-            selected_candidates = [
-                item
-                for item in prioritized
-                if item["confidence"] >= GROUNDED_SAM2_MIN_CONFIDENCE
-            ][:GROUNDED_SAM2_MAX_BOXES]
-
-            if len(selected_candidates) == 0:
-                selected_candidates = prioritized[:1]
-
-        segmented = []
-        for candidate in selected_candidates:
-            result = self.segment_box(image, candidate)
-            if result is not None:
-                segmented.append(result)
-
-        if len(segmented) == 0:
-            primary = selected_candidates[0]
-            return {
-                "source": "grounded-sam2",
-                "sourceLabel": "Grounded SAM 2",
-                "modelKey": "grounded-sam2",
-                "modelLabel": "Grounded SAM 2",
-                "modelVersion": f"{GROUNDING_DINO_MODEL_ID} + {SAM2_MODEL_ID}",
-                "status": "pending_review",
-                "suggestedType": primary["mappedType"],
-                "confidence": clamp_confidence(primary["confidence"]),
-                "rationale": "Детектор нашёл область, но SAM 2 не построил устойчивую маску внутри найденного окна.",
-                "evidence": {
-                    "detector": detection_source,
-                    "samModel": SAM2_MODEL_ID,
-                    "detectedZones": len(selected_candidates),
-                },
-                "visualEvidence": {
-                    "imageSpace": "normalized",
-                    "regions": relabel_regions([primary], primary["mappedType"], "grounded-sam2-fallback"),
-                },
-            }
-
-        merged_mask = np.zeros((image.height, image.width), dtype=bool)
-        merged_regions = []
-        type_scores: dict[str, float] = {}
-        total_pixels = 0
-
-        for index, result in enumerate(segmented, start=1):
-            candidate = result["candidate"]
-            total_pixels += result["positivePixels"]
-            type_scores[candidate["mappedType"]] = type_scores.get(candidate["mappedType"], 0.0) + candidate["confidence"]
-            merged_mask = np.logical_or(merged_mask, result["binaryMask"])
-
-            for region in result["visualEvidence"]["regions"]:
-                merged_regions.append(
-                    {
-                        **region,
-                        "id": f"grounded-sam2-region-{index}-{region['id']}",
-                    }
-                )
-
-        suggested_type = (
-            max(type_scores.items(), key=lambda pair: pair[1])[0]
-            if type_scores
-            else selected_candidates[0]["mappedType"]
-        )
-        confidence = clamp_confidence(
-            max(item["candidate"]["confidence"] for item in segmented) * 0.72
-            + min(0.24, total_pixels / float(image.width * image.height) * 1.6)
-        )
-
-        return {
-            "source": "grounded-sam2",
-            "sourceLabel": "Grounded SAM 2",
-            "modelKey": "grounded-sam2",
-            "modelLabel": "Grounded SAM 2",
-            "modelVersion": f"{GROUNDING_DINO_MODEL_ID} + {SAM2_MODEL_ID}",
-            "status": "pending_review",
-            "suggestedType": suggested_type,
-            "confidence": confidence,
-            "rationale": (
-                f"{'DeepCrack' if detection_source == 'deepcrack' else 'Grounding DINO'} выделил "
-                f"{len(selected_candidates)} зон, после чего SAM 2 уточнил маску внутри найденной области "
-                f"и собрал {len(segmented)} сегментаций."
-            ),
-            "evidence": {
-                "detector": detection_source,
-                "samModel": SAM2_MODEL_ID,
-                "detectedZones": len(selected_candidates),
-                "segmentedZones": len(segmented),
-                "positivePixels": total_pixels,
-            },
-            "visualEvidence": {
-                "imageSpace": "normalized",
-                "renderMode": "mask",
-                "maskDataUrl": encode_rgba_mask(
-                    np.where(merged_mask, 1.0, 0.0).astype(np.float32),
-                    merged_mask,
-                    color=(255, 240, 42),
-                    min_alpha=186,
-                ),
-                "maskWidth": image.width,
-                "maskHeight": image.height,
-                "regions": merged_regions,
-            },
-        }
 
 
 app = FastAPI(title="ConstructAI CV Inference")
 deepcrack_service = DeepCrackService()
 grounding_dino_service = GroundingDinoService()
-grounded_sam2_service = GroundedSam2Service(grounding_dino_service, deepcrack_service)
+sam3_service = Sam3Service()
 florence2_service = Florence2Service()
 model_registry = ModelRegistry(
     max_concurrency=CV_SERVICE_MAX_CONCURRENCY,
@@ -1612,10 +1190,10 @@ model_registry.register(
     grounding_dino_service.readiness,
 )
 model_registry.register(
-    "grounded-sam2",
-    "Grounded SAM 2",
-    grounded_sam2_service.infer,
-    grounded_sam2_service.readiness,
+    "sam3",
+    "SAM 3",
+    sam3_service.infer,
+    sam3_service.readiness,
 )
 model_registry.register(
     "florence-2", "Florence-2", florence2_service.infer, florence2_service.readiness
@@ -1626,7 +1204,7 @@ model_registry.register(
 def health():
     return {
         "status": "ok",
-        "device": str(deepcrack_service.device),
+        "device": str(sam3_service.device),
         "models": model_registry.keys(),
         "modelStatus": model_registry.describe(),
         "inferencePolicy": model_registry.policy(),
@@ -1636,7 +1214,7 @@ def health():
 @app.post("/infer")
 def infer(payload: InferRequest):
     try:
-        model_key = (payload.modelKey or "deepcrack").strip().lower()
+        model_key = (payload.modelKey or "sam3").strip().lower()
         return {"suggestion": model_registry.infer(model_key, payload.imageDataUrl)}
     except UnknownModelError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error

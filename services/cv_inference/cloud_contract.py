@@ -6,7 +6,7 @@ import hashlib
 MAX_IMAGE_BYTES = 12 * 1024 * 1024
 MAX_IMAGE_PIXELS = 12_000_000
 MAX_IMAGE_SIDE = 1600
-MODEL_KEYS = frozenset({"deepcrack", "grounded-sam2"})
+MODEL_KEYS = frozenset({"sam3"})
 
 
 def select_device_name(torch_module, preference: str = "auto") -> str:
@@ -28,9 +28,9 @@ def validate_cloud_payload(payload: dict) -> tuple[dict, bytes]:
         raise ValueError("Expected a JSON object.")
     if set(payload) - {"imageDataUrl", "modelKey"}:
         raise ValueError("Unsupported input fields.")
-    model_key = payload.get("modelKey", "grounded-sam2")
+    model_key = payload.get("modelKey", "sam3")
     if not isinstance(model_key, str) or model_key not in MODEL_KEYS:
-        raise ValueError("This Space supports deepcrack and grounded-sam2 only.")
+        raise ValueError("This Space supports sam3 only.")
     data_url = payload.get("imageDataUrl")
     if not isinstance(data_url, str):
         raise ValueError("A base64 imageDataUrl is required.")

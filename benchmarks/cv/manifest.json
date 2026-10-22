@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "id": "constructai-crack-regression-v1",
-  "description": "Deterministic segmentation regression set for the current crack-mask pipeline.",
+  "description": "Historical SAM 2 references for explicit cross-model drift comparison; not a SAM 3 accuracy baseline.",
   "referencePolicy": {
     "kind": "curated-model-output",
     "accuracyClaimAllowed": false,
     "description": "References are operator-approved demo outputs, not independent human ground truth. They detect pipeline drift but cannot prove real-world accuracy."
   },
   "defaultModels": [
-    "grounded-sam2"
+    "sam3"
   ],
   "qualityGate": {
     "aggregate": {

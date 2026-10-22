@@ -4,6 +4,7 @@ import { AppError } from "./app-error.js"
 import { requestInference, BoundedExecutor, InferenceQueueFullError } from "./inference-gateway.js"
 import { getCvInferenceMode, getCvInferenceTransport, getCvModelUrl } from "./runtime-config.js"
 import { defectCatalog } from "./catalog.js"
+import modelLock from "../services/cv_inference/sam3-model.json" with { type: "json" }
 
 export const PREVIEW_MAX_IMAGE_BYTES = 2 * 1024 * 1024
 export const PREVIEW_MAX_BODY_BYTES = 3 * 1024 * 1024
@@ -44,7 +45,7 @@ export class PreviewRateLimiter {
 export function previewEndpoint() {
   if (getCvInferenceMode() !== "external" || getCvInferenceTransport() !== "gradio") return ""
   try {
-    const url = new URL(getCvModelUrl("grounded-sam2"))
+    const url = new URL(getCvModelUrl("sam3"))
     if (url.protocol !== "https:" || !url.hostname.endsWith(".hf.space") ||
         url.username || url.password || url.port || url.search || url.hash || url.pathname !== "/") return ""
     return url.origin
@@ -57,7 +58,7 @@ export function getPreviewConfig() {
   return {
     mode: "public_preview",
     liveConfigured: previewEndpoint() !== "",
-    modelLabel: "DeepCrack + SAM 2",
+    modelLabel: "SAM 3",
     maxImageBytes: PREVIEW_MAX_IMAGE_BYTES,
     maxImageSide: 1600,
     storage: "none",
@@ -98,7 +99,10 @@ export function normalizePreviewResult(result, inputSha256) {
   const provenance = value?.inferenceProvenance
   const size = provenance?.inferenceSize
   if (value?.analysisMode !== "live" || value.status !== "pending_review" ||
-      value.modelKey !== "grounded-sam2" || provenance?.host !== "huggingface-zerogpu" ||
+      value.modelKey !== "sam3" || provenance?.host !== "huggingface-zerogpu" ||
+      provenance.models?.sam3?.id !== modelLock.sam3.id ||
+      provenance.models?.sam3?.revision !== modelLock.sam3.revision ||
+      provenance.models?.sam3?.sha256 !== modelLock.sam3.sha256 ||
       provenance.inputSha256 !== inputSha256 || !Number.isInteger(size?.width) ||
       !Number.isInteger(size?.height) || size.width < 1 || size.height < 1 ||
       size.width > 1600 || size.height > 1600) {
@@ -122,13 +126,16 @@ export function normalizePreviewResult(result, inputSha256) {
     visualEvidence = { maskDataUrl: evidence.maskDataUrl, maskWidth: size.width, maskHeight: size.height }
   }
   const score = value.confidence
+  if (typeof score !== "number" || !Number.isFinite(score) || score < 0 || score > 1) {
+    throw problem(502, "INVALID_RESULT", "The model score is invalid.")
+  }
   return {
     analysisMode: "live",
     status: "pending_review",
-    modelKey: "grounded-sam2",
-    modelLabel: "DeepCrack + SAM 2",
+    modelKey: "sam3",
+    modelLabel: "SAM 3",
     suggestedType: knownTypes.has(value.suggestedType) ? value.suggestedType : "other",
-    confidence: typeof score === "number" && Number.isFinite(score) ? Math.max(0, Math.min(1, score)) : null,
+    confidence: score,
     visualEvidence,
     inferenceProvenance: { host: provenance.host, inputSha256, inferenceSize: { width: size.width, height: size.height } }
   }
@@ -191,7 +198,7 @@ export function createPreviewHandler({ infer = requestInference, limiter = new P
       limiter.take(clientKey(request))
       const payload = validatePreviewPayload(await readBody(request))
       const result = await executor.run(() => infer({
-        endpointUrl, imageDataUrl: payload.imageDataUrl, modelKey: "grounded-sam2"
+        endpointUrl, imageDataUrl: payload.imageDataUrl, modelKey: "sam3"
       }, { transport: "gradio", timeoutMs: 165_000 }))
       return send(200, { suggestion: normalizePreviewResult(result, payload.sha256), humanConfirmationRequired: true })
     } catch (error) {

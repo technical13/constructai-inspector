@@ -411,9 +411,9 @@ test("mock inference returns a reviewable AI suggestion", async () => {
   restoreEnv("CV_INFERENCE_MODE", previousMode)
 
   assert.equal(suggestion.source, "mock")
-  assert.equal(suggestion.modelKey, "grounded-sam2")
-  assert.equal(suggestion.modelLabel, "Grounded SAM 2")
-  assert.equal(suggestion.modelVersion, "mock-grounded-sam2-v1")
+  assert.equal(suggestion.modelKey, "sam3")
+  assert.equal(suggestion.modelLabel, "SAM 3")
+  assert.equal(suggestion.modelVersion, "mock-sam3-v1")
   assert.equal(suggestion.status, "pending_review")
   assert.notEqual(suggestion.suggestedType, "other")
   assert.ok(suggestion.visualEvidence)
@@ -426,10 +426,11 @@ test("cv model registry exposes active and prepared adapters", () => {
   const models = getCvModels()
 
   assert.ok(models.length >= 5)
-  assert.equal(getDefaultCvModelKey(), "grounded-sam2")
-  assert.ok(models.some((item) => item.key === "grounded-sam2" && item.defaultSelected))
+  assert.equal(getDefaultCvModelKey(), "sam3")
+  assert.ok(models.some((item) => item.key === "sam3" && item.defaultSelected))
+  assert.ok(!models.some((item) => item.key === "grounded-sam2"))
   assert.ok(models.some((item) => item.key === "grounding-dino" && item.configured))
-  assert.ok(models.some((item) => item.key === "grounded-sam2" && item.configured))
+  assert.ok(models.some((item) => item.key === "sam3" && item.configured))
   assert.ok(models.some((item) => item.key === "florence-2" && item.configured))
   assert.ok(models.every((item) => typeof item.statusLabel === "string" && item.statusLabel !== ""))
 })
@@ -459,7 +460,7 @@ test("compare inference returns multiple model results in mock mode", async () =
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WHj8uoAAAAASUVORK5CYII=",
     "2026-04-13T10:00:00.000Z",
     {
-      modelKeys: ["deepcrack", "grounding-dino", "grounded-sam2", "florence-2"]
+      modelKeys: ["deepcrack", "grounding-dino", "sam3", "florence-2"]
     }
   )
 
@@ -635,7 +636,7 @@ test("Vercel does not advertise a developer loopback CV endpoint", () => {
     "CV_INFERENCE_URL",
     "DEEPCRACK_INFERENCE_URL",
     "GROUNDING_DINO_INFERENCE_URL",
-    "GROUNDED_SAM2_INFERENCE_URL",
+    "SAM3_INFERENCE_URL",
     "FLORENCE2_INFERENCE_URL",
     "GENERAL_CV_INFERENCE_URL"
   ]
@@ -650,8 +651,8 @@ test("Vercel does not advertise a developer loopback CV endpoint", () => {
     assert.equal(getCvInferenceUrl(), "")
     assert.ok(getCvModels().every((model) => model.configured === false))
 
-    process.env.GROUNDED_SAM2_INFERENCE_URL = "https://cv.example.test"
-    const groundedSam = getCvModels().find((model) => model.key === "grounded-sam2")
+    process.env.SAM3_INFERENCE_URL = "https://cv.example.test"
+    const groundedSam = getCvModels().find((model) => model.key === "sam3")
     assert.equal(groundedSam.configured, true)
     assert.equal(groundedSam.statusLabel, "Endpoint подключён")
   } finally {

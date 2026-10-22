@@ -6,30 +6,23 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
-const template = path.join(root, "deploy", "huggingface")
-const modelLock = JSON.parse(await fs.readFile(path.join(template, "models.json"), "utf8"))
-const sources = new Map([
+const sources = [
   ["deploy/huggingface/app.py", "app.py"],
   ["deploy/huggingface/README.md", "README.md"],
   ["deploy/huggingface/requirements.txt", "requirements.txt"],
-  ["deploy/huggingface/models.json", "models.json"],
-  ["services/cv_inference/app.py", "services/cv_inference/app.py"],
+  ["services/cv_inference/sam3-model.json", "models.json"],
+  ["services/cv_inference/sam3-model.json", "services/cv_inference/sam3-model.json"],
+  ["services/cv_inference/sam3_service.py", "services/cv_inference/sam3_service.py"],
+  ["services/cv_inference/__init__.py", "services/cv_inference/__init__.py"],
   ["services/cv_inference/cloud_contract.py", "services/cv_inference/cloud_contract.py"],
-  ["services/cv_inference/deepcrack_model.py", "services/cv_inference/deepcrack_model.py"],
   ["services/cv_inference/model_registry.py", "services/cv_inference/model_registry.py"],
-  ["services/cv_inference/requirements.txt", "services/cv_inference/requirements.txt"],
-  [modelLock.deepcrack.file, modelLock.deepcrack.file]
-])
+  ["services/cv_inference/requirements.txt", "services/cv_inference/requirements.txt"]
+]
 
 async function sha256(file) {
   const hash = createHash("sha256")
   for await (const chunk of createReadStream(file)) hash.update(chunk)
   return hash.digest("hex")
-}
-
-const checkpoint = path.join(root, modelLock.deepcrack.file)
-if (await sha256(checkpoint) !== modelLock.deepcrack.sha256) {
-  throw new Error("DeepCrack checkpoint does not match deploy/huggingface/models.json")
 }
 
 await fs.mkdir(path.join(root, "logs"), { recursive: true })

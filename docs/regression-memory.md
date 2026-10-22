@@ -1,5 +1,22 @@
 # Regression Memory
 
+## SAM 3 Primary Migration (2026-10-21)
+
+- Transformers 5.5.4 leaves zero-instance masks at decoder dimensions even with
+  target sizes. Zero instances must stay empty, not fail geometry validation or
+  be replaced by a precomputed mask. Nonempty geometry mismatches still fail.
+- Postprocess instances individually to avoid N full-resolution int64 masks.
+  Bound candidate count and fail explicitly rather than silently losing regions.
+- Active model selection and persisted provenance are different contracts.
+  Retired SAM 2 keys must remain readable without becoming SAM 3 keys on save.
+- Public inference verifies SAM 3 identity/revision/hash in addition to image
+  provenance. Old hosted responses must fail closed during a partial cutover.
+- A local HF login does not configure a Space secret. Never copy gated weights
+  or a local token into the public deployment package.
+- Starting a live comparison from a demo image clears demo-mode state and drops
+  precomputed comparison entries. A saved demo must not become a live result by
+  changing the selector, and a retired demo key must not become an active model.
+
 ## Public Preview Boundary (2026-10-20)
 
 - Vercel's static `index.html` wins over a root rewrite in this Other-framework

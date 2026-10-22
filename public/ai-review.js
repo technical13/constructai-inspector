@@ -59,6 +59,9 @@ export function getAnalysisLabel(suggestion, locale = "ru") {
   if (suggestion?.source === "mock" || suggestion?.analysisMode === "mock") {
     return locale === "en" ? "Mock output · Test data" : "Mock · Тестовые данные"
   }
+  if (suggestion?.analysisMode === "live") {
+    return locale === "en" ? "Live inference result" : "Результат живого анализа"
+  }
   return locale === "en" ? "Saved model output" : "Сохранённый результат модели"
 }
 

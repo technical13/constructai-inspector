@@ -16,6 +16,13 @@ const legacyTypeAliases = new Map([["void", "honeycombing"]])
 
 const cvModelSpecs = [
   {
+    key: "sam3",
+    label: "SAM 3",
+    family: "segmentation",
+    description: "Сегментация трещин по текстовому запросу.",
+    targetDefectTypes: ["crack"]
+  },
+  {
     key: "deepcrack",
     label: "DeepCrack",
     family: "specialized",
@@ -28,13 +35,6 @@ const cvModelSpecs = [
     family: "general",
     description: "Zero-shot detector визуальных зон.",
     targetDefectTypes: ["crack", "spalling", "honeycombing", "corrosion", "leakage", "geometry", "unfinished"]
-  },
-  {
-    key: "grounded-sam2",
-    label: "Grounded SAM 2",
-    family: "segmentation",
-    description: "Детектор + SAM 2 для точной маски.",
-    targetDefectTypes: ["crack"]
   },
   {
     key: "florence-2",
@@ -53,7 +53,9 @@ const cvModelSpecs = [
 ]
 
 function getCvModelSpec(modelKey = getDefaultCvModelKey()) {
-  return cvModelSpecs.find((item) => item.key === modelKey) || cvModelSpecs[0]
+  const spec = cvModelSpecs.find((item) => item.key === modelKey)
+  if (!spec) throw new AppError(400, `Unknown or retired CV model: ${modelKey}`)
+  return spec
 }
 
 function isLocalEndpoint(endpointUrl) {
@@ -198,7 +200,8 @@ function normalizeEvidence(value) {
 }
 
 function normalizeModelKey(value) {
-  return getCvModelSpec(typeof value === "string" ? value.trim() : "").key
+  // Stored provenance is not a request to execute a model. Preserve legacy keys.
+  return typeof value === "string" && value.trim() ? value.trim() : getDefaultCvModelKey()
 }
 
 function normalizeRegion(region, index) {
@@ -439,6 +442,9 @@ async function requestExternalSuggestion(imageDataUrl, now, modelKey) {
   if (!suggestion || typeof suggestion !== "object") {
     throw new AppError(502, "CV inference service вернул некорректный ответ.")
   }
+  if (suggestion.modelKey && suggestion.modelKey !== model.key) {
+    throw new AppError(502, "CV inference returned a different model than requested.")
+  }
 
   const normalized = {
     suggestionId: randomUUID(),
@@ -483,7 +489,7 @@ export async function suggestDefectFromImage(
   now = new Date().toISOString(),
   options = {}
 ) {
-  const modelKey = normalizeModelKey(options.modelKey || getDefaultCvModelKey())
+  const modelKey = getCvModelSpec(options.modelKey || getDefaultCvModelKey()).key
   const mode = getCvInferenceMode()
 
   if (mode === "disabled") {
@@ -507,7 +513,7 @@ export async function suggestDefectFromImage(
 
     throw new AppError(
       503,
-      "CV inference service недоступен. Запустите DeepCrack adapter или переключите режим AI."
+      "CV inference service недоступен. Запустите CV-service или переключите режим AI."
     )
   }
 }
@@ -602,7 +608,7 @@ export function finalizeAiSuggestion(
     modelLabel:
       typeof suggestionInput.modelLabel === "string" && suggestionInput.modelLabel.trim() !== ""
         ? suggestionInput.modelLabel.trim()
-        : getCvModelSpec(suggestionInput.modelKey).label,
+        : cvModelSpecs.find((item) => item.key === suggestionInput.modelKey)?.label || suggestionInput.sourceLabel || "Unknown Adapter",
     modelVersion:
       typeof suggestionInput.modelVersion === "string" &&
       suggestionInput.modelVersion.trim() !== ""

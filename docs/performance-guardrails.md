@@ -16,6 +16,11 @@
 
 - avoid keeping large image data URLs alive longer than needed in browser state
 - avoid duplicating full image payloads across multiple in-memory structures
+- run the selected adapter only for a new photo; auxiliary comparisons are
+  explicit, on-demand operations on that same photo, not automatic model fan-out
+- SAM 3 restores one instance at a time, caps candidate masks at 64 and input at
+  12 million pixels; preserve all instances below the cap and reject overflow
+- do not add cosmetic mask dilation/smoothing to SAM 3 or call it improved accuracy
 
 ## Data Loop Safeguards
 

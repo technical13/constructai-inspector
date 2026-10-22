@@ -32,7 +32,7 @@ const copy = {
     IMAGE_TOO_LARGE: "Choose a smaller photo: at most 12 MiB and 12 megapixels before resizing.",
     CONSENT_REQUIRED: "Confirm that this photo may be sent to Hugging Face.",
     noSensitive: "Do not upload confidential site photos, faces, or personal information.",
-    about: "How it works", aboutCopy: "The live pipeline uses DeepCrack, with Grounding DINO as a fallback detector, then SAM 2 to refine detected areas. A contour is a model suggestion, not proof of a crack. Reports and the full inspection workflow are available in the local application.",
+    about: "How it works", aboutCopy: "SAM 3 segments possible cracks using a fixed text prompt, without a separate detector. A contour is a model suggestion, not proof of a crack. Historical demo examples retain their original model labels. Reports and the full inspection workflow are available in the local application.",
     source: "Source & local setup", waiting: "Choose a photo to begin.", ready: "Photo ready. Confirm sharing, then analyze.", selectDemo: "Choose a prepared example below."
   },
   ru: {
@@ -68,7 +68,7 @@ const copy = {
     IMAGE_TOO_LARGE: "Выберите фото меньше: до 12 МиБ и 12 мегапикселей до уменьшения.",
     CONSENT_REQUIRED: "Подтвердите передачу фото в Hugging Face.",
     noSensitive: "Не загружайте конфиденциальные фото объекта, лица и персональные данные.",
-    about: "Как это работает", aboutCopy: "DeepCrack ищет области трещины, Grounding DINO используется как резервный детектор, затем SAM 2 уточняет контур. Контур — предположение модели, а не доказательство трещины. Акты и полный рабочий сценарий доступны в локальном приложении.",
+    about: "Как это работает", aboutCopy: "SAM 3 выделяет возможные трещины по фиксированному текстовому запросу, без отдельного детектора. Контур — предположение модели, а не доказательство трещины. Старые демо сохраняют название исходной модели. Акты и полный рабочий сценарий доступны в локальном приложении.",
     source: "Код и локальный запуск", waiting: "Выберите фото для начала.", ready: "Фото готово. Подтвердите передачу и запустите анализ.", selectDemo: "Выберите готовый пример ниже."
   }
 }
@@ -83,7 +83,7 @@ export function describePreviewResult(suggestion, locale) {
     title: t[suggestion?.suggestedType] || t.other,
     score: typeof suggestion?.confidence === "number" && Number.isFinite(suggestion.confidence)
       ? suggestion.confidence.toFixed(3) : t.unknownScore,
-    provenance: suggestion?.analysisMode === "precomputed_demo" ? t.demoResult : t.liveResult
+    provenance: `${suggestion?.analysisMode === "precomputed_demo" ? t.demoResult : t.liveResult}${suggestion?.modelLabel ? ` · ${suggestion.modelLabel}` : ""}`
   }
 }
 

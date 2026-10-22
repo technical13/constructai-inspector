@@ -1,5 +1,29 @@
 # Stability Log
 
+## 2026-10-21: SAM 3 Primary, SAM 2 Runtime Removed
+
+- Change summary: replace the active SAM 2 pipeline with pinned native SAM 3;
+  keep independent local auxiliary adapters, preserve historical provenance,
+  request auxiliary comparisons only on demand, and package code without weights.
+- Risk classification: HIGH (inference/runtime replacement and coordinated cloud cutover).
+- Stability score: 4/5 for the verified local source; hosted cutover is not performed.
+- Risk surface score: 4/5 for local risk controls; cloud validation remains blocked by the release barrier.
+- Invariant confidence: 5/5 for saved provenance/review/snapshot compatibility.
+- Test confidence: 4/5; real CPU adapter smoke matches all five A/B masks exactly.
+- Validation: 63 Node and 17 Python tests pass, optional Postgres explicitly skipped;
+  browser upload, selected-model switching, manual review, reload and real HTML
+  report verified in a separate fictional local store. See ignored local logs.
+  The full verification baseline also passes on the supported Node.js 24 runtime.
+- Performance notes: CPU defaults to four threads; one-instance-at-a-time mask
+  restoration bounds memory, max 64 candidates, no automatic auxiliary model fan-out.
+- Remaining risk surface: ZeroGPU/CUDA SAM 3 startup/inference unverified;
+  Space needs separately authorized gated-read secret and coordinated Vercel release.
+  Three existing orphan uploads remain untouched. Historical similarity gates are
+  not relabeled or weakened to mask cross-model drift.
+- Historical cross-model live run: all 3 cases complete, Dice 0.608880,
+  IoU 0.441582, old similarity gate fails as an explicit migration difference,
+  not an independent accuracy result. This does not override the pending cloud barrier.
+
 ## 2026-10-20 Public Live Preview
 
 - Change summary: Added a separate stateless public photo/demo experience, server-only

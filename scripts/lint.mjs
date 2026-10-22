@@ -41,6 +41,7 @@ const pyFiles = await collectFiles(
   new Set([".py"])
 )
 pyFiles.push(...await collectFiles(path.join("deploy", "huggingface"), new Set([".py"])))
+pyFiles.push(...await collectFiles("scripts", new Set([".py"])))
 
 const pythonSyntaxCheck = `
 import pathlib

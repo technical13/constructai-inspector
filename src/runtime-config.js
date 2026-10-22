@@ -24,7 +24,7 @@ function hasPostgresConfig() {
 const supportedCvModelKeys = new Set([
   "deepcrack",
   "grounding-dino",
-  "grounded-sam2",
+  "sam3",
   "florence-2",
   "universal-cv"
 ])
@@ -94,7 +94,7 @@ export function getDefaultCvModelKey() {
     return explicit
   }
 
-  return "grounded-sam2"
+  return "sam3"
 }
 
 export function getCvModelUrl(modelKey) {
@@ -104,8 +104,8 @@ export function getCvModelUrl(modelKey) {
       return readNonEmptyEnv("DEEPCRACK_INFERENCE_URL") || getCvInferenceUrl()
     case "grounding-dino":
       return readNonEmptyEnv("GROUNDING_DINO_INFERENCE_URL") || getCvInferenceUrl()
-    case "grounded-sam2":
-      return readNonEmptyEnv("GROUNDED_SAM2_INFERENCE_URL") || getCvInferenceUrl()
+    case "sam3":
+      return readNonEmptyEnv("SAM3_INFERENCE_URL") || getCvInferenceUrl()
     case "florence-2":
       return readNonEmptyEnv("FLORENCE2_INFERENCE_URL") || getCvInferenceUrl()
     case "universal-cv":

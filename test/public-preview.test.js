@@ -11,13 +11,14 @@ import {
 } from "../src/public-preview.js"
 import { isPublicPreview } from "../src/runtime-config.js"
 import { demoPreview, describePreviewResult, previewCopy, PreviewRun } from "../public/preview-contract.js"
+import modelLock from "../services/cv_inference/sam3-model.json" with { type: "json" }
 
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==", "base64")
 const dataUrl = `data:image/png;base64,${png.toString("base64")}`
 const inputSha256 = createHash("sha256").update(png).digest("hex")
 const settings = {
   CV_INFERENCE_MODE: "external", CV_INFERENCE_TRANSPORT: "gradio",
-  GROUNDED_SAM2_INFERENCE_URL: "https://test-space.hf.space", VERCEL: "", PUBLIC_PREVIEW_MODE: "true"
+  SAM3_INFERENCE_URL: "https://test-space.hf.space", VERCEL: "", PUBLIC_PREVIEW_MODE: "true"
 }
 
 async function withEnv(env, action) {
@@ -35,10 +36,10 @@ async function withEnv(env, action) {
 
 function cloudResult(overrides = {}) {
   return { suggestion: {
-    analysisMode: "live", status: "pending_review", modelKey: "grounded-sam2",
+    analysisMode: "live", status: "pending_review", modelKey: "sam3",
     suggestedType: "crack", confidence: .42,
     visualEvidence: { maskDataUrl: dataUrl, maskWidth: 1, maskHeight: 1 },
-    inferenceProvenance: { host: "huggingface-zerogpu", inputSha256, inferenceSize: { width: 1, height: 1 } },
+    inferenceProvenance: { host: "huggingface-zerogpu", inputSha256, models: modelLock, inferenceSize: { width: 1, height: 1 } },
     ...overrides
   } }
 }
@@ -84,7 +85,7 @@ test("only configured HTTPS Hugging Face endpoints enable live public inference"
   await withEnv(settings, async () => {
     assert.equal(previewEndpoint(), "https://test-space.hf.space")
     for (const url of ["http://test.hf.space", "https://elsewhere.test", "https://a.hf.space/extra", "https://x@y.hf.space", "https://a.hf.space?token=private"]) {
-      await withEnv({ GROUNDED_SAM2_INFERENCE_URL: url }, () => assert.equal(previewEndpoint(), ""))
+      await withEnv({ SAM3_INFERENCE_URL: url }, () => assert.equal(previewEndpoint(), ""))
     }
     await withEnv({ CV_INFERENCE_MODE: "mock" }, () => assert.equal(previewEndpoint(), ""))
     await withEnv({ CV_INFERENCE_TRANSPORT: "rest" }, () => assert.equal(previewEndpoint(), ""))
@@ -121,6 +122,8 @@ test("preview result rejects wrong provenance, implicit acceptance, mismatched m
   assert.equal(result.confidence, .42)
   assert.equal(result.visualEvidence.maskWidth, 1)
   for (const overrides of [{ analysisMode: "mock" }, { status: "accepted" }, { modelKey: "deepcrack" },
+    { modelKey: "grounded-sam2" }, { confidence: NaN }, { confidence: 1.1 },
+    { inferenceProvenance: { ...cloudResult().suggestion.inferenceProvenance, models: { sam3: { ...modelLock.sam3, revision: "wrong" } } } },
     { inferenceProvenance: { host: "local" } }, { visualEvidence: { maskDataUrl: dataUrl, maskWidth: 2, maskHeight: 1 } }]) {
     assert.throws(() => normalizePreviewResult(cloudResult(overrides), inputSha256), error => error.statusCode === 502)
   }
@@ -133,7 +136,7 @@ test("public API submits one real-model job, drops provider text, and does not a
     let calls = 0
     const handler = createPreviewHandler({ infer: async (input, options) => {
       calls++
-      assert.equal(input.modelKey, "grounded-sam2")
+      assert.equal(input.modelKey, "sam3")
       assert.equal(options.transport, "gradio")
       assert.equal(options.timeoutMs, 165_000)
       return cloudResult({ rationale: "private provider content", secret: "not public" })

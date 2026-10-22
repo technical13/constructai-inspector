@@ -1,5 +1,4 @@
 import base64
-import hashlib
 from io import BytesIO
 import json
 import os
@@ -16,46 +15,28 @@ from services.cv_inference.cloud_contract import (
     image_fingerprint,
     validate_cloud_payload,
 )
+from services.cv_inference.sam3_service import MODEL_LOCK as SERVICE_MODEL_LOCK, Sam3Service
+from services.cv_inference.model_registry import ModelRegistry
 
 
 ROOT = Path(__file__).resolve().parent
 MODEL_LOCK = json.loads((ROOT / "models.json").read_text(encoding="utf-8"))
+if MODEL_LOCK != SERVICE_MODEL_LOCK:
+    raise RuntimeError("Space and SAM 3 model locks differ.")
 ON_SPACE = bool(os.getenv("SPACE_ID"))
 if ON_SPACE:
     os.environ["CV_DEVICE"] = "cuda"
-os.environ["SAM2_MODEL_ID"] = MODEL_LOCK["sam2"]["id"]
-os.environ["SAM2_MODEL_REVISION"] = MODEL_LOCK["sam2"]["revision"]
-os.environ["GROUNDING_DINO_MODEL_ID"] = MODEL_LOCK["groundingDino"]["id"]
-os.environ["GROUNDING_DINO_MODEL_REVISION"] = MODEL_LOCK["groundingDino"]["revision"]
 os.environ["CV_SERVICE_MAX_CONCURRENCY"] = "1"
 os.environ["CV_SERVICE_MAX_QUEUE"] = "0"
 Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
 warnings.filterwarnings("error", category=Image.DecompressionBombWarning)
 
-from services.cv_inference.app import (  # noqa: E402
-    deepcrack_service,
-    grounded_sam2_service,
-    grounding_dino_service,
-    model_registry,
-)
-
-
-def verify_checkpoint():
-    checkpoint = ROOT / MODEL_LOCK["deepcrack"]["file"]
-    digest = hashlib.sha256()
-    with checkpoint.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    if digest.hexdigest() != MODEL_LOCK["deepcrack"]["sha256"]:
-        raise RuntimeError("DeepCrack checkpoint does not match models.json.")
-
-
-verify_checkpoint()
+sam3_service = Sam3Service()
+model_registry = ModelRegistry(max_concurrency=1, max_queue=0)
+model_registry.register("sam3", "SAM 3", sam3_service.infer, sam3_service.readiness)
 # ZeroGPU needs weights placed on emulated CUDA before entering the GPU function.
 if ON_SPACE:
-    deepcrack_service.ensure_loaded()
-    grounding_dino_service.ensure_loaded()
-    grounded_sam2_service.ensure_loaded()
+    sam3_service.ensure_loaded()
 
 
 def normalize_image(image: Image.Image) -> Image.Image:
@@ -146,7 +127,7 @@ def show_result(payload: dict, result: dict):
 with gr.Blocks(
     title="ConstructAI Inspector CV", delete_cache=(60, 300), analytics_enabled=False
 ) as demo:
-    gr.Markdown("# ConstructAI Inspector\nLive crack analysis · DeepCrack + SAM 2")
+    gr.Markdown("# ConstructAI Inspector\nLive crack analysis · SAM 3")
     gr.Markdown(
         "Upload a new photo. The model runs on demand, not from saved demo results. "
         "Free shared GPU: queues and daily quotas apply. **Do not upload sensitive project data.**"
@@ -155,8 +136,8 @@ with gr.Blocks(
         photo = gr.Image(type="pil", label="Concrete surface", sources=["upload"], format="png")
         overlay = gr.Image(label="Live analysis", interactive=False, format="png")
     model = gr.Dropdown(
-        choices=[("DeepCrack + SAM 2", "grounded-sam2"), ("DeepCrack", "deepcrack")],
-        value="grounded-sam2",
+        choices=[("SAM 3", "sam3")],
+        value="sam3",
         label="Model",
     )
     analyze = gr.Button("Analyze photo", variant="primary")

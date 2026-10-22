@@ -28,10 +28,10 @@ class CloudContractTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             select_device_name(self.torch(), "gpu")
 
-    def test_supported_payload_retains_bytes_and_defaults_to_sam2(self):
+    def test_supported_payload_retains_bytes_and_defaults_to_sam3(self):
         data_url = "data:image/png;base64," + base64.b64encode(b"fixture").decode()
         payload, image_bytes = validate_cloud_payload({"imageDataUrl": data_url})
-        self.assertEqual(payload, {"imageDataUrl": data_url, "modelKey": "grounded-sam2"})
+        self.assertEqual(payload, {"imageDataUrl": data_url, "modelKey": "sam3"})
         self.assertEqual(image_bytes, b"fixture")
         self.assertEqual(len(image_fingerprint(image_bytes)), 64)
         self.assertEqual(image_fingerprint(image_bytes), image_fingerprint(b"fixture"))
@@ -45,6 +45,7 @@ class CloudContractTest(unittest.TestCase):
             {"imageDataUrl": "data:image/png;base64,??"},
             {"imageDataUrl": "data:image/png;base64,"},
             {"imageDataUrl": "data:image/png;base64,YQ==", "modelKey": "unknown"},
+            {"imageDataUrl": "data:image/png;base64,YQ==", "modelKey": "grounded-sam2"},
             {"imageDataUrl": "data:image/png;base64,YQ==", "path": "/etc/passwd"},
         ]:
             with self.subTest(payload=payload), self.assertRaises(ValueError):

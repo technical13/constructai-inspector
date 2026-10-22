@@ -11,7 +11,9 @@ not rewritten. No production database migration is necessary.
   English is the default, with
   a persistent RU/EN language preference. Photos/results stay in page memory.
 - **Try your photo** resizes locally, requires explicit sharing consent, and
-  submits exactly one live DeepCrack + SAM 2 analysis via the server.
+  submits exactly one live SAM 3 analysis via the server in this source version.
+  The existing deployment is unchanged until the coordinated release in
+  `docs/sam3-migration.md` is authorized and completed.
 - **Demo examples** reads the existing checked-in image/mask library, clearly
   labeled as precomputed. It performs no inference and never auto-accepts a type.
 - Original/mask switching uses the same uncropped image geometry. No artificial
@@ -27,7 +29,7 @@ variables need not be read, exported, modified, or deleted.
 ```bash
 CV_INFERENCE_MODE=external
 CV_INFERENCE_TRANSPORT=gradio
-GROUNDED_SAM2_INFERENCE_URL=https://technical13-constructai-inspector-cv.hf.space
+SAM3_INFERENCE_URL=https://your-tested-sam3-space.hf.space
 CV_INFERENCE_MAX_CONCURRENCY=1
 CV_INFERENCE_MAX_QUEUE=0
 ```
@@ -54,6 +56,8 @@ inspection workspace. Vercel cannot opt out of the public storage guard.
 - Only the configured HTTPS `*.hf.space` root can receive the server token.
 - A returned PNG mask is at most 2 MiB, matches inference dimensions, and has
   the input SHA-256 provenance. Public JSON is at most 3 MiB and not cached.
+- Model key, pinned revision and weights hash must match the SAM 3 lock.
+  A previous SAM 2 response is rejected, never relabeled as a new model result.
 - One analysis is active per process, with no waiting queue. Per-process burst
   guard: two attempts per client and four total per 60-second window. It stores
   only temporary salted client hashes, not IPs or photos.
