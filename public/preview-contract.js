@@ -4,7 +4,7 @@ const copy = {
     photoAlt: "Concrete surface selected for analysis", imageAnalysis: "Image analysis", analysisMode: "Analysis mode",
     title: "Crack analysis", intro: "Your photo. A model-generated contour. Your judgment.",
     live: "Try your photo", demo: "Demo examples", choose: "Choose photo", analyze: "Analyze photo",
-    clear: "Clear", empty: "Start with a concrete-surface photo.",
+    clear: "Clear", empty: "Drop a concrete-surface photo here, or choose one below.",
     emptyHint: "JPEG, PNG or WebP · up to 12 MiB / 12 megapixels",
     consent: "I can share this non-sensitive photo with Hugging Face for analysis.",
     privacy: "Photos are resized before sending. No project records are saved here; Hugging Face may temporarily cache uploads and results.",
@@ -29,10 +29,11 @@ const copy = {
     ANALYSIS_TIMEOUT: "The GPU queue or analysis took too long. Try later; no demo result was substituted.",
     INVALID_RESULT: "The model result could not be verified. No mask is shown.",
     INVALID_IMAGE: "Choose a valid JPEG, PNG or WebP photo.",
+    ONE_PHOTO_ONLY: "Drop one photo at a time.",
     IMAGE_TOO_LARGE: "Choose a smaller photo: at most 12 MiB and 12 megapixels before resizing.",
     CONSENT_REQUIRED: "Confirm that this photo may be sent to Hugging Face.",
     noSensitive: "Do not upload confidential site photos, faces, or personal information.",
-    about: "How it works", aboutCopy: "SAM 3 segments possible cracks using a fixed text prompt, without a separate detector. A contour is a model suggestion, not proof of a crack. Historical demo examples retain their original model labels. Reports and the full inspection workflow are available in the local application.",
+    about: "How it works", aboutCopy: "SAM 3 segments possible cracks using a fixed text prompt, without a separate detector. A contour is a model suggestion, not proof of a crack. Demo examples show precomputed SAM 3 masks, without running a new analysis. Reports and the full inspection workflow are available in the local application.",
     source: "Source & local setup", waiting: "Choose a photo to begin.", ready: "Photo ready. Confirm sharing, then analyze.", selectDemo: "Choose a prepared example below."
   },
   ru: {
@@ -40,7 +41,7 @@ const copy = {
     photoAlt: "Бетонная поверхность для анализа", imageAnalysis: "Анализ изображения", analysisMode: "Режим анализа",
     title: "Анализ трещин", intro: "Ваше фото. Контур от модели. Ваша оценка.",
     live: "Своё фото", demo: "Демо-примеры", choose: "Выбрать фото", analyze: "Проанализировать",
-    clear: "Очистить", empty: "Начните с фотографии бетонной поверхности.",
+    clear: "Очистить", empty: "Перетащите фото бетонной поверхности сюда или выберите кнопкой ниже.",
     emptyHint: "JPEG, PNG или WebP · до 12 МиБ / 12 мегапикселей",
     consent: "Я могу передать это несекретное фото в Hugging Face для анализа.",
     privacy: "Перед отправкой фото уменьшается. Записи об объектах здесь не создаются; Hugging Face может временно кэшировать фото и результаты.",
@@ -65,10 +66,11 @@ const copy = {
     ANALYSIS_TIMEOUT: "Очередь GPU или анализ заняли слишком много времени. Попробуйте позже; демо не подставлялось.",
     INVALID_RESULT: "Результат модели не прошёл проверку. Маска не показана.",
     INVALID_IMAGE: "Выберите корректное фото JPEG, PNG или WebP.",
+    ONE_PHOTO_ONLY: "Перетаскивайте по одной фотографии.",
     IMAGE_TOO_LARGE: "Выберите фото меньше: до 12 МиБ и 12 мегапикселей до уменьшения.",
     CONSENT_REQUIRED: "Подтвердите передачу фото в Hugging Face.",
     noSensitive: "Не загружайте конфиденциальные фото объекта, лица и персональные данные.",
-    about: "Как это работает", aboutCopy: "SAM 3 выделяет возможные трещины по фиксированному текстовому запросу, без отдельного детектора. Контур — предположение модели, а не доказательство трещины. Старые демо сохраняют название исходной модели. Акты и полный рабочий сценарий доступны в локальном приложении.",
+    about: "Как это работает", aboutCopy: "SAM 3 выделяет возможные трещины по фиксированному текстовому запросу, без отдельного детектора. Контур — предположение модели, а не доказательство трещины. Демо показывают заранее рассчитанные маски SAM 3, без нового анализа. Акты и полный рабочий сценарий доступны в локальном приложении.",
     source: "Код и локальный запуск", waiting: "Выберите фото для начала.", ready: "Фото готово. Подтвердите передачу и запустите анализ.", selectDemo: "Выберите готовый пример ниже."
   }
 }

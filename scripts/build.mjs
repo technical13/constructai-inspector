@@ -7,6 +7,7 @@ const requiredFiles = [
   "public/app.css",
   "public/app.js",
   "public/ai-review.js",
+  "public/photo-input.js",
   "public/try.html",
   "public/preview.css",
   "public/preview.js",

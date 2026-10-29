@@ -1,4 +1,5 @@
 import { previewCopy, describePreviewResult, demoPreview, PreviewRun } from "./preview-contract.js"
+import { selectPhotoFile, bindPhotoDropZone, guardFileNavigation } from "./photo-input.js"
 
 const $ = id => document.getElementById(id)
 const run = new PreviewRun()
@@ -122,10 +123,11 @@ async function preparePhoto(file) {
   }
 }
 
-$("photo-file").addEventListener("change", async event => {
-  const file = event.target.files?.[0]
-  if (!file) return
+async function loadPhotoFiles(files) {
+  let file
+  try { file = selectPhotoFile(files) } catch (error) { status(error.message, true); render(); return }
   const revision = reset()
+  mode = "live"
   status("preparing")
   render()
   try {
@@ -138,6 +140,14 @@ $("photo-file").addEventListener("change", async event => {
     status(error.message, true)
   }
   render()
+}
+
+$("photo-file").addEventListener("change", event => {
+  if (event.target.files?.length) loadPhotoFiles(event.target.files)
+})
+guardFileNavigation(document)
+bindPhotoDropZone($("preview-stage"), loadPhotoFiles, {
+  onError: () => { status("INVALID_IMAGE", true); render() }
 })
 
 $("choose-button").addEventListener("click", () => $("photo-file").click())

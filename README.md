@@ -8,7 +8,7 @@ ConstructAI Inspector is a mobile-first construction inspection software prototy
 
 Core capabilities include project and inspection session setup, photo-based defect records, human review of suggested defect types, comparison of CV models, crack-mask visualization, and HTML inspection reports. The default crack-mask model in this source revision is pretrained Meta `SAM 3`, using the fixed text prompt `crack in concrete`, without a separate detector.
 
-This source change does not itself update the public deployment. Release the SAM 3 Space and web backend together using the [migration checklist](docs/sam3-migration.md). Historical demo masks retain their original SAM 2 provenance; they are not relabeled as SAM 3.
+SAM 3 and the web backend are connected through the [coordinated release](docs/sam3-migration.md). The current four demo entries were recomputed through real local SAM 3 inference; historical SAM 2 records and previous Git revisions retain their original provenance. See [demo refresh and photo drops](docs/demo-refresh.md).
 
 The prototype supports documentation and human review; it does not provide a validated structural safety assessment.
 
@@ -78,7 +78,8 @@ The command downloads the pinned official SAM 3 weights and verifies their SHA-2
 - `V2`: AI suggestions for defect types, requiring explicit human review.
 - Defect overlays on photos and in reports.
 - `SAM 3`: text-prompted crack segmentation, including multiple returned regions and explicit empty results.
-- `Demo Mode`: curated photos and saved masks with their original model labels, including historical SAM 2 results, without local Python inference.
+- `Demo Mode`: curated photos and precomputed SAM 3 masks, without inference when an example is selected. Historical SAM 2 records remain readable with their original labels.
+- Drag and drop or file selection for one JPEG/PNG/WebP photo, up to 12 MiB. Public live analysis still requires explicit sharing consent.
 - HTML report generation from a saved session snapshot.
 - Local filesystem storage for development.
 - Optional `Postgres` storage backend; not used by the stateless public preview.

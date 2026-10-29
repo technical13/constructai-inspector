@@ -8,7 +8,7 @@
 - `npm run typecheck`
   - verifies required exported module contracts are present
 - `npm test`
-  - runs deterministic Node tests in `mock` inference mode
+  - runs only `test/*.test.js` in `mock` inference mode, not archived copies under logs/output
   - runs dependency-free Python contract tests for the model registry and benchmark metrics
 - `npm run build`
   - verifies runtime assets and deployment manifest required for local/Vercel execution
@@ -33,6 +33,10 @@
 
 ## Current Coverage
 
+- shared photo picker/drop validation, nested drag feedback, disabled zones,
+  URL rejection, file navigation guards, and stale local read invalidation
+- current SAM 3 demo source hashes, pinned provenance, PNG dimensions, raw scores
+  and pending human review; historical SAM 2 compatibility remains separately tested
 - core domain invariants
 - report reproducibility from stored snapshot data
 - AI suggestion review persistence behavior

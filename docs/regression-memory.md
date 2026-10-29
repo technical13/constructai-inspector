@@ -1,5 +1,13 @@
 # Regression Memory
 
+## SAM 3 Demos And Photo Drops (2026-10-29)
+
+- Recompute demo masks; never rename SAM 2 outputs to SAM 3 or carry old acceptance.
+- Picker/drop must share limits; reject batches and URL-only payloads explicitly.
+- Invalidate pending file reads as well as inference when the photo or demo changes.
+- Public drops reset sharing consent and must not submit inference automatically.
+- Clear drag feedback on nested leave, drop, blur and dragend; guard navigation outside targets.
+
 ## SAM 3 Primary Migration (2026-10-21)
 
 - Transformers 5.5.4 leaves zero-instance masks at decoder dimensions even with
