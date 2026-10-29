@@ -176,7 +176,7 @@
           </section>
 
           <section id="screen-defect" class="screen screen--defect hidden">
-            <div class="screen-card screen-card--capture stack">
+            <div id="capture-drop-zone" class="screen-card screen-card--capture stack photo-drop-zone" aria-describedby="capture-drop-hint">
               <div class="screen-card__header">
                 <p class="screen-card__eyebrow" data-i18n="defect.photoEyebrow">Фото</p>
                 <h2 data-i18n="defect.photoTitle">Добавьте новый дефект</h2>
@@ -214,6 +214,7 @@
                         Фото не выбрано
                       </span>
                     </div>
+                    <small id="capture-drop-hint" class="inline-note" data-i18n="defect.dropPhoto">Или перетащите фото сюда · JPEG, PNG, WebP · до 12 МиБ</small>
                     <input
                       id="photo-input"
                       aria-label="Выбрать фото"
@@ -221,7 +222,7 @@
                       class="visually-hidden"
                       name="photo"
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp"
                       capture="environment"
                     />
                   </label>

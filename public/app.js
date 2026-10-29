@@ -2,6 +2,7 @@ import {
   getReviewLabel, transitionReviewDecision,
   getModelScoreText, getAnalysisLabel, localizeRegionLabel
 } from "./ai-review.js"
+import { selectPhotoFile, bindPhotoDropZone, guardFileNavigation } from "./photo-input.js"
 
 const state = {
   defectCatalog: [],
@@ -16,6 +17,7 @@ const state = {
   demoLibraryWritable: false,
   activeDemoScenarioId: "",
   pendingImageDataUrl: "",
+  photoFileName: "",
   pendingSuggestion: null,
   aiDecision: "pending_review",
   comparisonResults: [],
@@ -74,6 +76,7 @@ const translations = {
     "defect.ownPhoto": "Своя фотография",
     "defect.choosePhoto": "Выбрать фото",
     "defect.noPhotoSelected": "Фото не выбрано",
+    "defect.dropPhoto": "Или перетащите фото сюда · JPEG, PNG, WebP · до 12 МиБ",
     "defect.aiModel": "AI-модель",
     "defect.previewEmpty": "Снимите фото или выберите его из галереи",
     "defect.aiTitle": "AI-подсказка",
@@ -154,6 +157,7 @@ const translations = {
     "defect.ownPhoto": "Your own photo",
     "defect.choosePhoto": "Choose photo",
     "defect.noPhotoSelected": "No photo selected",
+    "defect.dropPhoto": "Or drop a photo here · JPEG, PNG, WebP · up to 12 MiB",
     "defect.aiModel": "AI model",
     "defect.previewEmpty": "Take a photo or choose one from the gallery",
     "defect.aiTitle": "AI suggestion",
@@ -277,7 +281,7 @@ const defectMetaTranslations = {
 const demoScenarioTranslations = {
   "crack-demo-1": {
     title: "Thin crack",
-    description: "A clean example to demonstrate the SAM 2 contour mask."
+    description: "A precomputed contour mask from real model inference."
   },
   "crack-demo-2": {
     title: "Local crack",
@@ -430,10 +434,8 @@ function renderPhotoSourceLabel() {
     return
   }
 
-  const selectedFile = elements.photoInput?.files?.[0]
-
-  if (selectedFile) {
-    elements.photoFileName.textContent = selectedFile.name
+  if (state.photoFileName) {
+    elements.photoFileName.textContent = state.photoFileName
     return
   }
 
@@ -1546,6 +1548,7 @@ function renderPhotoPreview() {
 
 function setPhotoPreview(dataUrl = "") {
   state.pendingImageDataUrl = dataUrl
+  if (!dataUrl) state.photoFileName = ""
   renderPhotoSourceLabel()
 
   if (!dataUrl) {
@@ -2175,6 +2178,7 @@ async function applyDemoScenario(scenarioId) {
   state.suggestionRequestId += 1
   const requestId = state.suggestionRequestId
   state.activeDemoScenarioId = scenario.id
+  state.photoFileName = ""
   state.aiDecision = "pending_review"
   state.pendingImageDataUrl = scenario.imageUrl
   state.pendingSuggestion = null
@@ -2477,23 +2481,42 @@ elements.sessionForm.addEventListener("submit", async (event) => {
   }
 })
 
-elements.photoInput.addEventListener("change", async (event) => {
-  const file = event.target.files?.[0]
-  state.activeDemoScenarioId = ""
-  delete elements.commentInput.dataset.demoScenarioId
-
-  if (!file) {
-    setPhotoPreview("")
+async function loadPhotoFiles(files) {
+  let file
+  try { file = selectPhotoFile(files) } catch (error) {
+    const messages = {
+      INVALID_IMAGE: state.locale === "en" ? "Choose a valid JPEG, PNG or WebP photo." : "Выберите корректное фото JPEG, PNG или WebP.",
+      IMAGE_TOO_LARGE: state.locale === "en" ? "Choose a photo up to 12 MiB." : "Выберите фото размером до 12 МиБ.",
+      ONE_PHOTO_ONLY: state.locale === "en" ? "Drop one photo at a time." : "Перетаскивайте по одной фотографии."
+    }
+    showStatus(messages[error.message] || messages.INVALID_IMAGE, "error")
     return
   }
-
+  elements.photoInput.value = ""
+  state.activeDemoScenarioId = ""
+  delete elements.commentInput.dataset.demoScenarioId
+  setPhotoPreview("")
+  state.photoFileName = file.name
+  renderPhotoSourceLabel()
+  const requestId = state.suggestionRequestId
   try {
     const dataUrl = await fileToDataUrl(file)
+    if (requestId !== state.suggestionRequestId) return
     setPhotoPreview(dataUrl)
     await requestSuggestionForImage(dataUrl)
   } catch (error) {
+    if (requestId !== state.suggestionRequestId) return
     showStatus(error.message, "error")
   }
+}
+
+elements.photoInput.addEventListener("change", event => {
+  if (event.target.files?.length) loadPhotoFiles(event.target.files)
+})
+guardFileNavigation(document)
+bindPhotoDropZone(document.querySelector("#capture-drop-zone"), loadPhotoFiles, {
+  enabled: () => state.uiStep === "defect",
+  onError: () => showStatus(state.locale === "en" ? "Could not load the photo." : "Не удалось загрузить фото.", "error")
 })
 
 elements.demoScenarios.addEventListener("click", async (event) => {

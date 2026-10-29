@@ -1,5 +1,20 @@
 # Stability Log
 
+## 2026-10-29: SAM 3 Demos And Drag And Drop
+
+- Risk: HIGH; new real-model fixtures and browser file input handling.
+- Scope: recompute four existing demo entries with real CPU SAM 3, preserve original
+  photo bytes/IDs and historical records, share single-file picker/drop contracts.
+- Validation: full verify passes on Node 24: 70 current Node tests, 17 Python tests,
+  one isolated Postgres test explicitly skipped. Four real CPU demo inferences
+  and four browser demo renders pass. Picker/drop contracts and consent are tested.
+  Node discovery is restricted to test/*.test.js so archived deployments do not run.
+  Release details are recorded in the ignored local QA directory.
+- Scores: stability 4/5, risk controls 4/5, invariants 5/5, tests 4/5.
+  No model-accuracy or production database verification is inferred.
+- Limits: two existing entries share one photo; curated masks are not human ground
+  truth. Existing orphan uploads stay untouched; hosted inference remains quota-limited.
+
 ## 2026-10-21: SAM 3 Primary, SAM 2 Runtime Removed
 
 - Change summary: replace the active SAM 2 pipeline with pinned native SAM 3;

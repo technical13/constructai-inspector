@@ -43,10 +43,10 @@
             <span id="result-origin">SAM 3</span>
             <button id="original-button" type="button" aria-pressed="false" hidden data-copy="original">Show original</button>
           </div>
-          <div id="preview-stage" class="preview-stage" aria-busy="false">
+          <div id="preview-stage" class="preview-stage photo-drop-zone" aria-busy="false" aria-describedby="photo-drop-hint">
             <div id="empty-stage" class="preview-empty">
               <span class="preview-crosshair" aria-hidden="true"></span>
-              <p data-copy="empty">Start with a concrete-surface photo.</p>
+              <p id="photo-drop-hint" data-copy="empty">Drop a concrete-surface photo here, or choose one below.</p>
               <small data-copy="emptyHint">JPEG, PNG or WebP · up to 12 MiB / 12 megapixels</small>
             </div>
             <img id="preview-photo" alt="" hidden />

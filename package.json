@@ -12,7 +12,7 @@
     "lint": "node scripts/lint.mjs",
     "start": "node src/server.js",
     "test": "npm run test:node && npm run test:python-contracts",
-    "test:node": "CV_INFERENCE_MODE=mock node --test",
+    "test:node": "CV_INFERENCE_MODE=mock node --test test/*.test.js",
     "test:python-contracts": "python3 -B -m unittest discover -s services/cv_inference/tests -p 'test_*.py'",
     "typecheck": "node scripts/typecheck.mjs",
     "build": "node scripts/build.mjs",

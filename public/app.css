@@ -1669,3 +1669,14 @@ summary:focus-visible {
     font-size: 3rem;
   }
 }
+.photo-drop-zone { position: relative; }
+.photo-drop-zone.is-drag-over::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  z-index: 5;
+  border: 2px dashed var(--signal);
+  background: rgb(242 230 0 / 9%);
+  outline: 1px solid var(--ink);
+  pointer-events: none;
+}
